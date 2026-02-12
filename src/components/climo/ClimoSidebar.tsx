@@ -1,8 +1,9 @@
-import { LayoutDashboard, Users, MessageSquare, Settings, FileText, BrainCircuit } from 'lucide-react';
+import { LayoutDashboard, Users, MessageSquare, Settings, FileText, BrainCircuit, LogOut } from 'lucide-react';
 
 interface ClimoSidebarProps {
   activeTab: string;
   onTabChange: (tab: string) => void;
+  onLogout?: () => void;
 }
 
 const navItems = [
@@ -16,7 +17,7 @@ const managementItems = [
   { id: 'settings', label: 'Configurações', icon: Settings },
 ];
 
-export default function ClimoSidebar({ activeTab, onTabChange }: ClimoSidebarProps) {
+export default function ClimoSidebar({ activeTab, onTabChange, onLogout }: ClimoSidebarProps) {
   return (
     <aside className="w-64 flex flex-col fixed h-full z-20 border-r border-sidebar-border bg-sidebar text-sidebar-foreground">
       <div className="h-16 flex items-center px-6 border-b border-sidebar-border">
@@ -74,6 +75,11 @@ export default function ClimoSidebar({ activeTab, onTabChange }: ClimoSidebarPro
             <p className="text-sm font-medium truncate">Dr. Gestor</p>
             <p className="text-xs opacity-60 truncate">Administrador</p>
           </div>
+          {onLogout && (
+            <button onClick={onLogout} className="p-1.5 rounded-md hover:bg-sidebar-accent transition-colors" title="Sair">
+              <LogOut className="w-4 h-4 opacity-60" />
+            </button>
+          )}
         </div>
       </div>
     </aside>

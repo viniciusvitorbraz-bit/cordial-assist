@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import LoginScreen from '@/components/climo/LoginScreen';
 import ClimoSidebar from '@/components/climo/ClimoSidebar';
 import ClimoTopbar from '@/components/climo/ClimoTopbar';
 import DashboardView from '@/components/climo/DashboardView';
@@ -8,11 +9,16 @@ import ReportsView from '@/components/climo/ReportsView';
 import SettingsView from '@/components/climo/SettingsView';
 
 export default function Index() {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [activeTab, setActiveTab] = useState('dashboard');
+
+  if (!isAuthenticated) {
+    return <LoginScreen onLogin={() => setIsAuthenticated(true)} />;
+  }
 
   return (
     <div className="min-h-screen flex bg-background text-foreground font-sans">
-      <ClimoSidebar activeTab={activeTab} onTabChange={setActiveTab} />
+      <ClimoSidebar activeTab={activeTab} onTabChange={setActiveTab} onLogout={() => setIsAuthenticated(false)} />
       <main className="flex-1 ml-64 min-h-screen flex flex-col">
         <ClimoTopbar activeTab={activeTab} />
         <div className="p-6 flex-1 overflow-y-auto">
