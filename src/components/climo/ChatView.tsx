@@ -1,12 +1,15 @@
 import { useState } from 'react';
-import { Search, Building2, BrainCircuit, Globe, MoreVertical } from 'lucide-react';
+import { Search, Building2, BrainCircuit, Globe, MessageCircle, MoreVertical } from 'lucide-react';
 import { activeChats, chatHistoryMock, type ChatContact } from '@/data/climo-data';
+import ChatwootWidget, { ChatwootConfig } from './ChatwootWidget';
 
 export default function ChatView() {
   const [selectedChat, setSelectedChat] = useState<ChatContact>(activeChats[0]);
   const [isHumanHandling, setIsHumanHandling] = useState(false);
-  const [chatMode, setChatMode] = useState<'custom' | 'iframe'>('custom');
+  const [chatMode, setChatMode] = useState<'custom' | 'iframe' | 'widget'>('custom');
   const [chatwootUrl, setChatwootUrl] = useState('');
+  const [widgetToken, setWidgetToken] = useState(() => localStorage.getItem('chatwoot_token') || '');
+  const [widgetBaseUrl, setWidgetBaseUrl] = useState(() => localStorage.getItem('chatwoot_url') || '');
 
   const handleChatSelect = (chat: ChatContact) => {
     setSelectedChat(chat);
@@ -27,8 +30,14 @@ export default function ChatView() {
             onClick={() => setChatMode('iframe')}
             className={`flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-sm transition-colors ${chatMode === 'iframe' ? 'bg-primary/10 text-primary border border-primary/20' : 'text-muted-foreground hover:bg-muted'}`}
           >
-            <Globe className="w-4 h-4" /> Chatwoot Real
-          </button>
+             <Globe className="w-4 h-4" /> Chatwoot Iframe
+           </button>
+           <button
+             onClick={() => setChatMode('widget')}
+             className={`flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-sm transition-colors ${chatMode === 'widget' ? 'bg-primary/10 text-primary border border-primary/20' : 'text-muted-foreground hover:bg-muted'}`}
+           >
+             <MessageCircle className="w-4 h-4" /> Widget Chatwoot
+           </button>
         </div>
         {chatMode === 'iframe' && (
           <input
@@ -148,7 +157,7 @@ export default function ChatView() {
             </div>
           </div>
         </div>
-      ) : (
+      ) : chatMode === 'iframe' ? (
         <div className="h-[calc(100vh-220px)] border border-border rounded-lg bg-muted/20 flex flex-col items-center justify-center overflow-hidden">
           {chatwootUrl ? (
             <iframe src={chatwootUrl} className="w-full h-full border-none" title="Painel Chatwoot" />
@@ -166,6 +175,29 @@ export default function ChatView() {
                 onBlur={(e) => setChatwootUrl(e.target.value)}
               />
             </div>
+          )}
+        </div>
+      ) : (
+        <div className="h-[calc(100vh-220px)] border border-border rounded-lg bg-muted/20 flex flex-col items-center justify-center overflow-hidden">
+          {widgetToken ? (
+            <div className="w-full h-full flex items-center justify-center">
+              <ChatwootWidget websiteToken={widgetToken} baseUrl={widgetBaseUrl} />
+              <div className="text-center p-8">
+                <div className="w-16 h-16 bg-primary/10 text-primary rounded-full flex items-center justify-center mx-auto mb-4">
+                  <MessageCircle className="w-8 h-8" />
+                </div>
+                <h3 className="text-lg font-bold text-foreground mb-2">Widget Ativo</h3>
+                <p className="text-sm text-muted-foreground mb-4">O widget do Chatwoot está ativo no canto inferior direito da tela.</p>
+                <button
+                  onClick={() => { setWidgetToken(''); setWidgetBaseUrl(''); localStorage.removeItem('chatwoot_token'); localStorage.removeItem('chatwoot_url'); }}
+                  className="text-xs text-destructive hover:underline"
+                >
+                  Desconectar widget
+                </button>
+              </div>
+            </div>
+          ) : (
+            <ChatwootConfig onSave={(token, url) => { setWidgetToken(token); setWidgetBaseUrl(url); }} />
           )}
         </div>
       )}
