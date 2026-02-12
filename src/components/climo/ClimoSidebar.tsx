@@ -53,7 +53,12 @@ export default function ClimoSidebar({ activeTab, onTabChange }: ClimoSidebarPro
           {managementItems.map(({ id, label, icon: Icon }) => (
             <button
               key={id}
-              className="flex items-center gap-3 w-full px-3 py-2 text-sm font-medium hover:bg-sidebar-accent hover:text-sidebar-accent-foreground rounded-sm transition-colors"
+              onClick={() => onTabChange(id)}
+              className={`flex items-center gap-3 w-full px-3 py-2 text-sm font-medium rounded-sm transition-colors ${
+                activeTab === id
+                  ? 'bg-sidebar-primary text-sidebar-primary-foreground'
+                  : 'hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+              }`}
             >
               <Icon className="w-4 h-4" />
               <span>{label}</span>
