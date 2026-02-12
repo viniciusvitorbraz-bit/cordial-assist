@@ -1,14 +1,24 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+import { useState } from 'react';
+import ClimoSidebar from '@/components/climo/ClimoSidebar';
+import ClimoTopbar from '@/components/climo/ClimoTopbar';
+import DashboardView from '@/components/climo/DashboardView';
+import CrmView from '@/components/climo/CrmView';
+import ChatView from '@/components/climo/ChatView';
 
-const Index = () => {
+export default function Index() {
+  const [activeTab, setActiveTab] = useState('dashboard');
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background">
-      <div className="text-center">
-        <h1 className="mb-4 text-4xl font-bold">Welcome to Your Blank App</h1>
-        <p className="text-xl text-muted-foreground">Start building your amazing project here!</p>
-      </div>
+    <div className="min-h-screen flex bg-background text-foreground font-sans">
+      <ClimoSidebar activeTab={activeTab} onTabChange={setActiveTab} />
+      <main className="flex-1 ml-64 min-h-screen flex flex-col">
+        <ClimoTopbar activeTab={activeTab} />
+        <div className="p-6 flex-1 overflow-y-auto">
+          {activeTab === 'dashboard' && <DashboardView />}
+          {activeTab === 'crm' && <CrmView />}
+          {activeTab === 'chat' && <ChatView />}
+        </div>
+      </main>
     </div>
   );
-};
-
-export default Index;
+}
