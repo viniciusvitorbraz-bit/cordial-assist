@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Calendar, ChevronDown, Clock, CheckCircle, BrainCircuit, ThumbsUp, Zap } from 'lucide-react';
+import { Calendar, ChevronDown, Clock, CheckCircle, BrainCircuit, ThumbsUp, Zap, TrendingUp } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell,
   PieChart, Pie, Legend,
@@ -63,6 +63,19 @@ export default function DashboardView() {
           <ServiceMetric label="Tempo de Resolução" value="45s" subValue="Média IA" icon={CheckCircle} colorClass="bg-climo-cyan/15 text-climo-cyan" />
           <ServiceMetric label="Taxa de Retenção" value="72%" subValue="Sem humano" icon={BrainCircuit} colorClass="bg-chart-3/15 text-chart-3" />
           <ServiceMetric label="Satisfação (CSAT)" value="4.8" subValue="/ 5.0" icon={ThumbsUp} colorClass="bg-chart-4/15 text-chart-4" />
+        </div>
+      </div>
+
+      {/* SEÇÃO NOVA: Impacto Financeiro da IA */}
+      <div>
+        <h3 className="text-sm font-bold text-foreground uppercase tracking-wide mb-4 mt-8 flex items-center gap-2">
+          <TrendingUp className="w-4 h-4 text-chart-1" /> Retorno Financeiro do Agente (ROI)
+        </h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <StatCard title="ROI do Agente" value="450%" subtext="Retorno sobre o custo da IA" trend="up" trendValue="12%" />
+          <StatCard title="Receita Autônoma" value="R$ 12.5k" subtext="Fechados 100% pela IA" trend="up" trendValue="5%" />
+          <StatCard title="Economia Operacional" value="R$ 3.200" subtext="Equiv. a 160h de recepção" trend="up" trendValue="R$ 400" />
+          <StatCard title="Custo por Contato" value="R$ 0,15" subtext="vs. R$ 4,50 atendimento humano" trend="down" trendValue="R$ 0,02" />
         </div>
       </div>
 
