@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { MessageCircle, Send, RefreshCw, User, Clock, ChevronLeft, X, Inbox, Loader2, Settings, AlertTriangle, Database, BotOff, Bot, Mic, MicOff, Square } from 'lucide-react';
+import { MessageCircle, Send, RefreshCw, User, Clock, ChevronLeft, X, Inbox, Loader2, Settings, AlertTriangle, Database, BotOff, Bot, Mic, MicOff, Square, FileText } from 'lucide-react';
 import { activeChats, chatHistoryMock } from '@/data/climo-data';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
@@ -602,15 +602,49 @@ export default function ChatView() {
                         ? 'bg-primary text-primary-foreground rounded-br-sm'
                         : 'bg-muted text-foreground rounded-bl-sm'
                     }`}>
-                      {/* Render audio attachments */}
-                      {msg.attachments?.map((att) =>
-                        isAudioAttachment(att) ? (
-                          <audio key={att.id} controls className="mb-1 max-w-full" preload="metadata">
-                            <source src={att.data_url} />
-                            Seu navegador não suporta áudio.
-                          </audio>
-                        ) : null
-                      )}
+                      {/* Render attachments */}
+                      {msg.attachments?.map((att) => {
+                        if (isAudioAttachment(att)) {
+                          return (
+                            <audio key={att.id} controls className="mb-1 max-w-full" preload="metadata">
+                              <source src={att.data_url} />
+                              Seu navegador não suporta áudio.
+                            </audio>
+                          );
+                        }
+                        if (att.file_type === 'image') {
+                          return (
+                            <a key={att.id} href={att.data_url} target="_blank" rel="noopener noreferrer" className="block mb-1">
+                              <img
+                                src={att.data_url}
+                                alt="Anexo"
+                                className="max-w-full rounded-md cursor-pointer hover:opacity-90 transition-opacity"
+                              />
+                            </a>
+                          );
+                        }
+                        if (att.file_type === 'file') {
+                          return (
+                            <a
+                              key={att.id}
+                              href={att.data_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className={`flex items-center gap-2 p-2 mb-1 rounded-md border transition-colors ${
+                                isOutgoing
+                                  ? 'bg-primary-foreground/10 border-primary-foreground/20 hover:bg-primary-foreground/20 text-primary-foreground'
+                                  : 'bg-background border-border hover:bg-accent text-foreground'
+                              }`}
+                            >
+                              <FileText className={`w-5 h-5 shrink-0 ${isOutgoing ? 'text-primary-foreground' : 'text-primary'}`} />
+                              <span className="text-xs font-medium truncate">
+                                {att.data_url?.split('/').pop()?.split('?')[0] || 'Visualizar Documento'}
+                              </span>
+                            </a>
+                          );
+                        }
+                        return null;
+                      })}
                       {msg.content && <p>{msg.content}</p>}
                       <span className={`text-[9px] mt-1 block ${isOutgoing ? 'text-primary-foreground/60' : 'text-muted-foreground'}`}>
                         {new Date(msg.created_at * 1000).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
