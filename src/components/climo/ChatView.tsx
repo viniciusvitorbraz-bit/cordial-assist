@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import { MessageCircle, Send, RefreshCw, User, Clock, ChevronLeft, X, Inbox, Loader2 } from 'lucide-react';
+import { MessageCircle, Send, RefreshCw, User, Clock, ChevronLeft, X, Inbox, Loader2, Settings, AlertTriangle, Database } from 'lucide-react';
+import { activeChats, chatHistoryMock } from '@/data/climo-data';
 
 interface Conversation {
   id: number;
@@ -61,6 +62,8 @@ export default function ChatView() {
   const [sending, setSending] = useState(false);
   const [error, setError] = useState('');
   const [filter, setFilter] = useState<'open' | 'pending' | 'resolved' | 'all'>('open');
+  const [showConfig, setShowConfig] = useState(false);
+  const [usingExampleData, setUsingExampleData] = useState(false);
 
   const apiHeaders = useCallback(() => ({
     'Content-Type': 'application/json',
@@ -75,16 +78,26 @@ export default function ChatView() {
     if (!connected) return;
     setLoading(true);
     setError('');
+    setUsingExampleData(false);
     try {
       const statusParam = filter === 'all' ? '' : `&status=${filter}`;
       const res = await fetch(`${apiBase()}/conversations?page=1${statusParam}`, {
         headers: apiHeaders(),
       });
-      if (!res.ok) throw new Error(`Erro ${res.status}: Verifique suas credenciais`);
+      if (!res.ok) {
+        if (res.status === 401) throw new Error('Erro 401: Token de acesso inválido. Verifique nas configurações.');
+        if (res.status === 404) throw new Error('Erro 404: URL ou Account ID incorretos. Verifique nas configurações.');
+        const errorText = await res.text();
+        throw new Error(`Erro ${res.status}: ${errorText || res.statusText}`);
+      }
       const data = await res.json();
       setConversations(data.data?.payload || []);
     } catch (err: any) {
-      setError(err.message);
+      let msg = err.message || 'Erro desconhecido';
+      if (msg.includes('Failed to fetch')) {
+        msg = 'Erro de conexão: Verifique se a URL está correta, se o servidor está acessível, ou se há bloqueio de CORS.';
+      }
+      setError(msg);
       setConversations([]);
     } finally {
       setLoading(false);
@@ -141,6 +154,8 @@ export default function ChatView() {
     localStorage.setItem('chatwoot_account_id', accountId);
     setBaseUrl(cleanUrl);
     setConnected(true);
+    setShowConfig(false);
+    setUsingExampleData(false);
   };
 
   const handleDisconnect = () => {
@@ -154,6 +169,29 @@ export default function ChatView() {
     setToken('');
     setBaseUrl('');
     setAccountId('');
+    setUsingExampleData(false);
+  };
+
+  const loadExampleData = () => {
+    setUsingExampleData(true);
+    setError('');
+    const exampleConvos: Conversation[] = activeChats.map((c, i) => ({
+      id: c.id,
+      inbox_id: 1,
+      status: c.status === 'bot' ? 'open' : 'pending',
+      messages: [{ id: i, content: c.lastMsg, message_type: 0, created_at: Date.now() / 1000 }],
+      meta: { sender: { name: c.name } },
+      created_at: Date.now() / 1000,
+      last_activity_at: Date.now() / 1000,
+      unread_count: c.unread,
+    }));
+    setConversations(exampleConvos);
+    setMessages(chatHistoryMock.map((m, i) => ({
+      id: i,
+      content: m.text,
+      message_type: m.sender === 'user' ? 0 : 1,
+      created_at: Date.now() / 1000,
+    })));
   };
 
   // --- CONFIG SCREEN ---
@@ -216,7 +254,7 @@ export default function ChatView() {
 
   // --- MAIN CHAT INTERFACE ---
   return (
-    <div className="h-[calc(100vh-180px)] border border-border rounded-lg bg-card flex overflow-hidden">
+    <div className="h-[calc(100vh-180px)] border border-border rounded-lg bg-card flex overflow-hidden relative">
       {/* Sidebar - Conversations List */}
       <div className={`w-80 border-r border-border flex flex-col bg-muted/20 shrink-0 ${selectedConvo ? 'hidden md:flex' : 'flex'}`}>
         {/* Header */}
@@ -224,6 +262,9 @@ export default function ChatView() {
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-bold text-foreground">Conversas</h3>
             <div className="flex items-center gap-1">
+              <button onClick={() => setShowConfig(true)} className="p-1.5 hover:bg-muted rounded transition-colors" title="Configurações de API">
+                <Settings className="w-3.5 h-3.5 text-muted-foreground" />
+              </button>
               <button onClick={fetchConversations} className="p-1.5 hover:bg-muted rounded transition-colors" title="Atualizar">
                 <RefreshCw className={`w-3.5 h-3.5 text-muted-foreground ${loading ? 'animate-spin' : ''}`} />
               </button>
@@ -250,7 +291,30 @@ export default function ChatView() {
 
         {/* List */}
         <div className="flex-1 overflow-y-auto">
-          {error && <p className="text-xs text-destructive p-3">{error}</p>}
+          {error && (
+            <div className="p-3 space-y-2">
+              <div className="flex items-start gap-2 p-2.5 bg-destructive/10 border border-destructive/20 rounded-[var(--radius)]">
+                <AlertTriangle className="w-4 h-4 text-destructive shrink-0 mt-0.5" />
+                <p className="text-xs text-destructive leading-relaxed">{error}</p>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setShowConfig(true)}
+                  className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-primary text-primary-foreground rounded-[var(--radius)] text-xs font-medium hover:opacity-90 transition-colors"
+                >
+                  <Settings className="w-3.5 h-3.5" />
+                  Configurações de API
+                </button>
+                <button
+                  onClick={loadExampleData}
+                  className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-muted text-muted-foreground rounded-[var(--radius)] text-xs font-medium hover:bg-muted/80 transition-colors"
+                >
+                  <Database className="w-3.5 h-3.5" />
+                  Dados de Exemplo
+                </button>
+              </div>
+            </div>
+          )}
           {loading && !conversations.length && (
             <div className="flex items-center justify-center p-8">
               <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
@@ -260,6 +324,9 @@ export default function ChatView() {
             <div className="text-center p-8 text-muted-foreground">
               <Inbox className="w-8 h-8 mx-auto mb-2 opacity-50" />
               <p className="text-xs">Nenhuma conversa encontrada</p>
+              <button onClick={loadExampleData} className="mt-2 text-xs text-primary hover:underline">
+                Carregar dados de exemplo
+              </button>
             </div>
           )}
           {conversations.map((convo) => {
@@ -392,6 +459,64 @@ export default function ChatView() {
           </div>
         )}
       </div>
+
+      {/* Config Modal */}
+      {showConfig && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={() => setShowConfig(false)}>
+          <div className="bg-card border border-border rounded-lg p-6 max-w-md w-full space-y-3" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-sm font-bold text-foreground">Configurações de API</h3>
+              <button onClick={() => setShowConfig(false)} className="p-1 hover:bg-muted rounded">
+                <X className="w-4 h-4 text-muted-foreground" />
+              </button>
+            </div>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">URL da instância</label>
+              <input
+                type="text"
+                value={baseUrl}
+                onChange={(e) => setBaseUrl(e.target.value.replace(/\/+$/, ''))}
+                placeholder="https://app.chatwoot.com"
+                className="w-full mt-1 px-4 py-2.5 border border-border bg-background rounded-[var(--radius)] text-sm focus:border-primary focus:outline-none"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">ID da Conta</label>
+              <input
+                type="text"
+                value={accountId}
+                onChange={(e) => setAccountId(e.target.value)}
+                placeholder="Ex: 1"
+                className="w-full mt-1 px-4 py-2.5 border border-border bg-background rounded-[var(--radius)] text-sm focus:border-primary focus:outline-none"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Token de Acesso</label>
+              <input
+                type="password"
+                value={token}
+                onChange={(e) => setToken(e.target.value)}
+                placeholder="Cole seu token aqui"
+                className="w-full mt-1 px-4 py-2.5 border border-border bg-background rounded-[var(--radius)] text-sm focus:border-primary focus:outline-none"
+              />
+            </div>
+            <button
+              onClick={handleConnect}
+              disabled={!baseUrl || !token || !accountId}
+              className="w-full mt-2 bg-primary text-primary-foreground py-2.5 rounded-[var(--radius)] text-sm font-bold hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              Salvar e Reconectar
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Example data banner */}
+      {usingExampleData && (
+        <div className="absolute top-2 left-1/2 -translate-x-1/2 z-10 bg-accent text-accent-foreground text-[10px] px-3 py-1 rounded-full font-medium shadow">
+          📋 Dados de exemplo — conecte à API para dados reais
+        </div>
+      )}
     </div>
   );
 }
