@@ -5,7 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 
 // ========== CONFIGURE SUA URL DO WEBHOOK N8N AQUI ==========
-const N8N_WEBHOOK_URL = 'https://autopilot-n8n.rdhe1h.easypanel.host/webhook-test/toggle-ai';
+const N8N_WEBHOOK_URL = 'https://autopilot-n8n.rdhe1h.easypanel.host/webhook/toggle-ai';
 // ===========================================================
 
 
