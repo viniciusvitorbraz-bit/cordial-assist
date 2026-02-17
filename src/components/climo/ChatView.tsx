@@ -8,6 +8,7 @@ import { toast } from '@/hooks/use-toast';
 const N8N_WEBHOOK_URL = 'https://autopilot-n8n.rdhe1h.easypanel.host/webhook-test/toggle-ai';
 // ===========================================================
 
+
 interface Attachment {
   id: number;
   file_type: string;
@@ -184,17 +185,17 @@ export default function ChatView() {
     });
 
     try {
-      await fetch(N8N_WEBHOOK_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      const { error } = await supabase.functions.invoke('n8n-proxy', {
+        body: {
+          webhook_url: N8N_WEBHOOK_URL,
           conversation_id: selectedConvo.id,
           account_id: Number(accountId),
           action: 'toggle_ai',
           current_status: currentStatus,
           desired_status: desiredStatus,
-        }),
+        },
       });
+      if (error) throw error;
       // Update the local conversation object so switching away and back keeps state
       setSelectedConvo(prev => prev ? {
         ...prev,
