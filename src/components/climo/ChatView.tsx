@@ -1,7 +1,19 @@
-import { useState, useEffect, useCallback } from 'react';
-import { MessageCircle, Send, RefreshCw, User, Clock, ChevronLeft, X, Inbox, Loader2, Settings, AlertTriangle, Database } from 'lucide-react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { MessageCircle, Send, RefreshCw, User, Clock, ChevronLeft, X, Inbox, Loader2, Settings, AlertTriangle, Database, BotOff, Bot, Mic, MicOff, Square } from 'lucide-react';
 import { activeChats, chatHistoryMock } from '@/data/climo-data';
 import { supabase } from '@/integrations/supabase/client';
+import { toast } from '@/hooks/use-toast';
+
+// ========== CONFIGURE SUA URL DO WEBHOOK N8N AQUI ==========
+const N8N_WEBHOOK_URL = '';
+// ===========================================================
+
+interface Attachment {
+  id: number;
+  file_type: string;
+  data_url: string;
+  account_id?: number;
+}
 
 interface Conversation {
   id: number;
@@ -24,10 +36,11 @@ interface Conversation {
 interface Message {
   id: number;
   content: string;
-  message_type: number; // 0=incoming, 1=outgoing
+  message_type: number;
   created_at: number;
   sender?: { name: string; thumbnail?: string };
   content_type?: string;
+  attachments?: Attachment[];
 }
 
 function timeAgo(timestamp: number) {
@@ -65,6 +78,16 @@ export default function ChatView() {
   const [filter, setFilter] = useState<'open' | 'pending' | 'resolved' | 'all'>('open');
   const [showConfig, setShowConfig] = useState(false);
   const [usingExampleData, setUsingExampleData] = useState(false);
+
+  // N8N AI toggle state
+  const [aiPaused, setAiPaused] = useState(false);
+  const [togglingAi, setTogglingAi] = useState(false);
+
+  // Audio recording state
+  const [isRecording, setIsRecording] = useState(false);
+  const [sendingAudio, setSendingAudio] = useState(false);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
 
   const callProxy = useCallback(async (endpoint: string, method = 'GET', body?: any) => {
     const { data, error } = await supabase.functions.invoke('chatwoot-proxy', {
@@ -133,12 +156,150 @@ export default function ChatView() {
     }
   };
 
+  // ---- N8N AI Toggle ----
+  const toggleAi = async () => {
+    if (!selectedConvo) return;
+    if (!N8N_WEBHOOK_URL) {
+      toast({
+        title: 'Webhook não configurado',
+        description: 'Defina a constante N8N_WEBHOOK_URL no código do ChatView.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    setTogglingAi(true);
+    const newStatus = aiPaused ? 'active' : 'paused';
+    try {
+      await fetch(N8N_WEBHOOK_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          conversation_id: selectedConvo.id,
+          action: 'toggle_ai',
+          status: newStatus,
+        }),
+      });
+      setAiPaused(!aiPaused);
+      toast({
+        title: `IA ${newStatus === 'paused' ? 'pausada' : 'ativada'}`,
+        description: `Comando enviado para o n8n (conversa #${selectedConvo.id}).`,
+      });
+    } catch (err: any) {
+      toast({
+        title: 'Erro ao enviar para n8n',
+        description: err.message || 'Verifique a URL do webhook.',
+        variant: 'destructive',
+      });
+    } finally {
+      setTogglingAi(false);
+    }
+  };
+
+  // ---- Audio Recording ----
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+      mediaRecorderRef.current = mediaRecorder;
+      audioChunksRef.current = [];
+
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) audioChunksRef.current.push(e.data);
+      };
+
+      mediaRecorder.onstop = async () => {
+        stream.getTracks().forEach(t => t.stop());
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        await sendAudioMessage(audioBlob);
+      };
+
+      mediaRecorder.start();
+      setIsRecording(true);
+    } catch (err) {
+      toast({
+        title: 'Erro ao acessar microfone',
+        description: 'Permita o acesso ao microfone no navegador.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      mediaRecorderRef.current.stop();
+    }
+    setIsRecording(false);
+  };
+
+  const sendAudioMessage = async (audioBlob: Blob) => {
+    if (!selectedConvo || usingExampleData) return;
+    setSendingAudio(true);
+    try {
+      const formData = new FormData();
+      formData.append('attachments[]', audioBlob, 'audio.webm');
+      formData.append('message_type', 'outgoing');
+      formData.append('content', '');
+
+      const cleanBase = baseUrl.replace(/\/+$/, '');
+      const endpoint = `${cleanBase}/api/v1/accounts/${accountId}/conversations/${selectedConvo.id}/messages`;
+
+      // For file uploads we call the Chatwoot API directly through the proxy edge function
+      // but since FormData can't be JSON-serialized, we use a direct fetch through the proxy
+      // by sending the audio as base64
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        const base64 = (reader.result as string).split(',')[1];
+        try {
+          await supabase.functions.invoke('chatwoot-proxy', {
+            body: {
+              endpoint: `/api/v1/accounts/${accountId}/conversations/${selectedConvo.id}/messages`,
+              method: 'POST',
+              body: {
+                content: '',
+                message_type: 'outgoing',
+                attachments: [{
+                  content: base64,
+                  encoding: 'base64',
+                  filename: 'audio.webm',
+                  content_type: 'audio/webm',
+                }],
+              },
+              api_access_token: token,
+              base_url: baseUrl.replace(/\/+$/, ''),
+            },
+          });
+          await fetchMessages(selectedConvo.id);
+          toast({ title: 'Áudio enviado com sucesso' });
+        } catch (err: any) {
+          toast({
+            title: 'Erro ao enviar áudio',
+            description: err.message,
+            variant: 'destructive',
+          });
+        } finally {
+          setSendingAudio(false);
+        }
+      };
+      reader.readAsDataURL(audioBlob);
+    } catch (err: any) {
+      toast({
+        title: 'Erro ao processar áudio',
+        description: err.message,
+        variant: 'destructive',
+      });
+      setSendingAudio(false);
+    }
+  };
+
   useEffect(() => {
     if (connected) fetchConversations();
   }, [connected, fetchConversations]);
 
   useEffect(() => {
-    if (selectedConvo) fetchMessages(selectedConvo.id);
+    if (selectedConvo) {
+      fetchMessages(selectedConvo.id);
+      setAiPaused(false);
+    }
   }, [selectedConvo, fetchMessages]);
 
   const handleConnect = () => {
@@ -187,6 +348,11 @@ export default function ChatView() {
       message_type: m.sender === 'user' ? 0 : 1,
       created_at: Date.now() / 1000,
     })));
+  };
+
+  // Helper to check if attachment is audio
+  const isAudioAttachment = (att: Attachment) => {
+    return att.file_type === 'audio' || att.data_url?.match(/\.(ogg|mp3|wav|webm|mpeg|m4a)(\?|$)/i);
   };
 
   // --- CONFIG SCREEN ---
@@ -393,6 +559,28 @@ export default function ChatView() {
                   {selectedConvo.meta?.sender?.phone_number || selectedConvo.meta?.sender?.email || `ID: ${selectedConvo.id}`}
                 </p>
               </div>
+
+              {/* AI Toggle Button */}
+              <button
+                onClick={toggleAi}
+                disabled={togglingAi}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-medium transition-colors ${
+                  aiPaused
+                    ? 'bg-destructive/10 text-destructive hover:bg-destructive/20'
+                    : 'bg-accent text-accent-foreground hover:bg-accent/80'
+                }`}
+                title={aiPaused ? 'IA pausada — clique para ativar' : 'IA ativa — clique para pausar'}
+              >
+                {togglingAi ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : aiPaused ? (
+                  <BotOff className="w-3.5 h-3.5" />
+                ) : (
+                  <Bot className="w-3.5 h-3.5" />
+                )}
+                {aiPaused ? 'IA Parada' : 'Parar IA'}
+              </button>
+
               <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${statusLabel(selectedConvo.status).color} text-white`}>
                 {statusLabel(selectedConvo.status).label}
               </span>
@@ -414,6 +602,15 @@ export default function ChatView() {
                         ? 'bg-primary text-primary-foreground rounded-br-sm'
                         : 'bg-muted text-foreground rounded-bl-sm'
                     }`}>
+                      {/* Render audio attachments */}
+                      {msg.attachments?.map((att) =>
+                        isAudioAttachment(att) ? (
+                          <audio key={att.id} controls className="mb-1 max-w-full" preload="metadata">
+                            <source src={att.data_url} />
+                            Seu navegador não suporta áudio.
+                          </audio>
+                        ) : null
+                      )}
                       {msg.content && <p>{msg.content}</p>}
                       <span className={`text-[9px] mt-1 block ${isOutgoing ? 'text-primary-foreground/60' : 'text-muted-foreground'}`}>
                         {new Date(msg.created_at * 1000).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
@@ -426,7 +623,7 @@ export default function ChatView() {
 
             {/* Input */}
             <div className="p-3 border-t border-border">
-              <div className="flex gap-2">
+              <div className="flex gap-2 items-center">
                 <input
                   type="text"
                   value={newMessage}
@@ -435,6 +632,25 @@ export default function ChatView() {
                   placeholder="Digite sua mensagem..."
                   className="flex-1 px-3 py-2 border border-border bg-background rounded-[var(--radius)] text-sm focus:border-primary focus:outline-none"
                 />
+                {/* Mic button */}
+                <button
+                  onClick={isRecording ? stopRecording : startRecording}
+                  disabled={sendingAudio || usingExampleData}
+                  className={`p-2 rounded-[var(--radius)] transition-colors ${
+                    isRecording
+                      ? 'bg-destructive text-destructive-foreground animate-pulse'
+                      : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                  } disabled:opacity-50`}
+                  title={isRecording ? 'Parar gravação' : 'Gravar áudio'}
+                >
+                  {sendingAudio ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : isRecording ? (
+                    <Square className="w-4 h-4" />
+                  ) : (
+                    <Mic className="w-4 h-4" />
+                  )}
+                </button>
                 <button
                   onClick={sendMessage}
                   disabled={!newMessage.trim() || sending}
@@ -443,6 +659,9 @@ export default function ChatView() {
                   {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
                 </button>
               </div>
+              {isRecording && (
+                <p className="text-[10px] text-destructive mt-1 animate-pulse">🔴 Gravando áudio… clique no ■ para parar</p>
+              )}
             </div>
           </>
         ) : (
