@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { MessageCircle, Send, RefreshCw, User, Clock, ChevronLeft, X, Inbox, Loader2, Settings, AlertTriangle, Database } from 'lucide-react';
 import { activeChats, chatHistoryMock } from '@/data/climo-data';
+import { supabase } from '@/integrations/supabase/client';
 
 interface Conversation {
   id: number;
@@ -65,14 +66,20 @@ export default function ChatView() {
   const [showConfig, setShowConfig] = useState(false);
   const [usingExampleData, setUsingExampleData] = useState(false);
 
-  const apiHeaders = useCallback(() => ({
-    'Content-Type': 'application/json',
-    'api_access_token': token,
-  }), [token]);
-
-  const apiBase = useCallback(() => {
-    return `${baseUrl.replace(/\/+$/, '')}/api/v1/accounts/${accountId}`;
-  }, [baseUrl, accountId]);
+  const callProxy = useCallback(async (endpoint: string, method = 'GET', body?: any) => {
+    const { data, error } = await supabase.functions.invoke('chatwoot-proxy', {
+      body: {
+        endpoint,
+        method,
+        body,
+        api_access_token: token,
+        base_url: baseUrl.replace(/\/+$/, ''),
+      },
+    });
+    if (error) throw new Error(error.message || 'Erro ao chamar proxy');
+    if (data?.error) throw new Error(data.error);
+    return data;
+  }, [token, baseUrl]);
 
   const fetchConversations = useCallback(async () => {
     if (!connected) return;
@@ -81,54 +88,42 @@ export default function ChatView() {
     setUsingExampleData(false);
     try {
       const statusParam = filter === 'all' ? '' : `&status=${filter}`;
-      const res = await fetch(`${apiBase()}/conversations?page=1${statusParam}`, {
-        headers: apiHeaders(),
-      });
-      if (!res.ok) {
-        if (res.status === 401) throw new Error('Erro 401: Token de acesso inválido. Verifique nas configurações.');
-        if (res.status === 404) throw new Error('Erro 404: URL ou Account ID incorretos. Verifique nas configurações.');
-        const errorText = await res.text();
-        throw new Error(`Erro ${res.status}: ${errorText || res.statusText}`);
-      }
-      const data = await res.json();
+      const data = await callProxy(`/api/v1/accounts/${accountId}/conversations?page=1${statusParam}`);
       setConversations(data.data?.payload || []);
     } catch (err: any) {
       let msg = err.message || 'Erro desconhecido';
-      if (msg.includes('Failed to fetch')) {
-        msg = 'Erro de conexão: Verifique se a URL está correta, se o servidor está acessível, ou se há bloqueio de CORS.';
+      if (msg.includes('Failed to fetch') || msg.includes('FunctionsHttpError')) {
+        msg = 'Erro de conexão com o proxy. Verifique se a URL e o Token estão corretos nas configurações.';
       }
       setError(msg);
       setConversations([]);
     } finally {
       setLoading(false);
     }
-  }, [connected, filter, apiBase, apiHeaders]);
+  }, [connected, filter, accountId, callProxy]);
 
   const fetchMessages = useCallback(async (convoId: number) => {
+    if (usingExampleData) return;
     setLoadingMsgs(true);
     try {
-      const res = await fetch(`${apiBase()}/conversations/${convoId}/messages`, {
-        headers: apiHeaders(),
-      });
-      if (!res.ok) throw new Error('Erro ao carregar mensagens');
-      const data = await res.json();
+      const data = await callProxy(`/api/v1/accounts/${accountId}/conversations/${convoId}/messages`);
       setMessages(data.payload || []);
     } catch {
       setMessages([]);
     } finally {
       setLoadingMsgs(false);
     }
-  }, [apiBase, apiHeaders]);
+  }, [accountId, callProxy, usingExampleData]);
 
   const sendMessage = async () => {
-    if (!newMessage.trim() || !selectedConvo) return;
+    if (!newMessage.trim() || !selectedConvo || usingExampleData) return;
     setSending(true);
     try {
-      await fetch(`${apiBase()}/conversations/${selectedConvo.id}/messages`, {
-        method: 'POST',
-        headers: apiHeaders(),
-        body: JSON.stringify({ content: newMessage, message_type: 'outgoing' }),
-      });
+      await callProxy(
+        `/api/v1/accounts/${accountId}/conversations/${selectedConvo.id}/messages`,
+        'POST',
+        { content: newMessage, message_type: 'outgoing' }
+      );
       setNewMessage('');
       await fetchMessages(selectedConvo.id);
     } catch {
