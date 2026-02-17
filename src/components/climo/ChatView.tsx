@@ -28,6 +28,10 @@ interface Conversation {
       thumbnail?: string;
     };
   };
+  custom_attributes?: {
+    ai_status?: string;
+    [key: string]: any;
+  };
   created_at: number;
   last_activity_at: number;
   unread_count?: number;
@@ -167,24 +171,38 @@ export default function ChatView() {
       });
       return;
     }
+
+    const currentStatus = selectedConvo.custom_attributes?.ai_status || 'active';
+    const desiredStatus = currentStatus === 'paused' ? 'active' : 'paused';
+
+    // Optimistic update
+    setAiPaused(desiredStatus === 'paused');
     setTogglingAi(true);
-    const newStatus = aiPaused ? 'active' : 'paused';
+    toast({
+      title: 'Comando enviado',
+      description: `Alternando IA para "${desiredStatus}" na conversa #${selectedConvo.id}…`,
+    });
+
     try {
       await fetch(N8N_WEBHOOK_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           conversation_id: selectedConvo.id,
+          account_id: Number(accountId),
           action: 'toggle_ai',
-          status: newStatus,
+          current_status: currentStatus,
+          desired_status: desiredStatus,
         }),
       });
-      setAiPaused(!aiPaused);
-      toast({
-        title: `IA ${newStatus === 'paused' ? 'pausada' : 'ativada'}`,
-        description: `Comando enviado para o n8n (conversa #${selectedConvo.id}).`,
-      });
+      // Update the local conversation object so switching away and back keeps state
+      setSelectedConvo(prev => prev ? {
+        ...prev,
+        custom_attributes: { ...prev.custom_attributes, ai_status: desiredStatus },
+      } : prev);
     } catch (err: any) {
+      // Revert optimistic update
+      setAiPaused(currentStatus === 'paused');
       toast({
         title: 'Erro ao enviar para n8n',
         description: err.message || 'Verifique a URL do webhook.',
@@ -298,7 +316,9 @@ export default function ChatView() {
   useEffect(() => {
     if (selectedConvo) {
       fetchMessages(selectedConvo.id);
-      setAiPaused(false);
+      // Sync AI state from conversation's custom_attributes
+      const status = selectedConvo.custom_attributes?.ai_status;
+      setAiPaused(status === 'paused');
     }
   }, [selectedConvo, fetchMessages]);
 
@@ -566,10 +586,10 @@ export default function ChatView() {
                 disabled={togglingAi}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-medium transition-colors ${
                   aiPaused
-                    ? 'bg-destructive/10 text-destructive hover:bg-destructive/20'
-                    : 'bg-accent text-accent-foreground hover:bg-accent/80'
+                    ? 'bg-primary/10 text-primary hover:bg-primary/20'
+                    : 'bg-destructive/10 text-destructive hover:bg-destructive/20'
                 }`}
-                title={aiPaused ? 'IA pausada — clique para ativar' : 'IA ativa — clique para pausar'}
+                title={aiPaused ? 'IA pausada — clique para retomar' : 'IA ativa — clique para pausar'}
               >
                 {togglingAi ? (
                   <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -578,7 +598,7 @@ export default function ChatView() {
                 ) : (
                   <Bot className="w-3.5 h-3.5" />
                 )}
-                {aiPaused ? 'IA Parada' : 'Parar IA'}
+                {aiPaused ? 'Retomar IA' : 'Parar IA'}
               </button>
 
               <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${statusLabel(selectedConvo.status).color} text-white`}>
