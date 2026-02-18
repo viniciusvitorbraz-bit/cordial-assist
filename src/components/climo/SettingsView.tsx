@@ -14,6 +14,12 @@ export default function SettingsView() {
     if (config) {
       setUrl(config.url);
       setAnonKey(config.anonKey);
+    } else {
+      // Pré-preenche com valores do projeto
+      const envUrl = import.meta.env.VITE_SUPABASE_URL;
+      const envKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+      if (envUrl) setUrl(envUrl);
+      if (envKey) setAnonKey(envKey);
     }
   }, []);
 
