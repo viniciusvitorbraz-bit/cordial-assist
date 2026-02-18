@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Calendar, ChevronDown, Clock, CheckCircle, BrainCircuit, ThumbsUp, Zap, Timer, UserCheck, CheckCircle2 } from 'lucide-react';
+import { Calendar, ChevronDown, Timer, UserCheck, CheckCircle2 } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell,
 } from 'recharts';
@@ -52,22 +52,8 @@ export default function DashboardView() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 gap-6">
         <StatCard title="Total Atendimentos" value="382" subtext="No período selecionado" trend="up" trendValue="15%" highlight />
-        <StatCard title="ASOs Confirmados" value="124" subtext="Emitidos no período" trend="up" trendValue="8%" />
-        <StatCard title="Taxa de Automação" value="72%" subtext="Resolvidos sem humano" trend="up" trendValue="4%" />
-      </div>
-
-      <div>
-        <h3 className="text-sm font-bold text-foreground uppercase tracking-wide mb-4 flex items-center gap-2">
-          <Zap className="w-4 h-4 text-climo-cyan" /> Eficiência Operacional
-        </h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <ServiceMetric label="Primeira Resposta" value="2s" subValue="Instantâneo" icon={Clock} colorClass="bg-chart-1/15 text-chart-1" />
-          <ServiceMetric label="Tempo de Resolução" value="45s" subValue="Média IA" icon={CheckCircle} colorClass="bg-climo-cyan/15 text-climo-cyan" />
-          <ServiceMetric label="Taxa de Retenção" value="72%" subValue="Sem humano" icon={BrainCircuit} colorClass="bg-chart-3/15 text-chart-3" />
-          <ServiceMetric label="Satisfação (CSAT)" value="4.8" subValue="/ 5.0" icon={ThumbsUp} colorClass="bg-chart-4/15 text-chart-4" />
-        </div>
       </div>
 
       {/* Tempos Operacionais */}
