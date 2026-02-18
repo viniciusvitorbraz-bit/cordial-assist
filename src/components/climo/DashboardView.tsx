@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Calendar, ChevronDown, Timer, UserCheck, CheckCircle2, Loader2 } from 'lucide-react';
+import { Calendar, ChevronDown, Timer, UserCheck, CheckCircle2, Loader2, AlertTriangle } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell,
 } from 'recharts';
@@ -18,6 +18,7 @@ export default function DashboardView() {
   const [dateRange, setDateRange] = useState('Hoje');
   const [isDateDropdownOpen, setIsDateDropdownOpen] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const [totalAtendimentos, setTotalAtendimentos] = useState<{ hoje: number; ontem: number; crescimento_pct: number } | null>(null);
   const [tempos, setTempos] = useState<{ tempo_conversa_ia_seg: number; tempo_intervencao_seg: number; tempo_resolucao_total_seg: number } | null>(null);
@@ -26,6 +27,7 @@ export default function DashboardView() {
 
   const fetchData = useCallback(async () => {
     try {
+      setError(null);
       const db = createDynamicSupabaseClient();
       if (!db) {
         setLoading(false);
@@ -38,12 +40,28 @@ export default function DashboardView() {
         db.from('v_atendimentos_semana').select('*'),
       ]);
 
+      // Check for errors (e.g. views not found)
+      const errors = [resTotal, resTempos, resHora, resSemana]
+        .filter(r => r.error)
+        .map(r => r.error!.message);
+
+      if (errors.length > 0) {
+        const isNotFound = errors.some(e => e.includes('Could not find'));
+        if (isNotFound) {
+          setError('As views do dashboard não foram encontradas no banco de dados. Verifique se a URL e Anon Key em Configurações apontam para o projeto correto onde as views (v_total_atendimentos, v_tempos_operacionais, v_volume_por_hora, v_atendimentos_semana) foram criadas.');
+        } else {
+          setError(`Erro ao consultar dados: ${errors[0]}`);
+        }
+        console.error('Erros nas queries do dashboard:', errors);
+      }
+
       if (resTotal.data) setTotalAtendimentos(resTotal.data);
       if (resTempos.data) setTempos(resTempos.data);
       if (resHora.data) setVolumeHora(resHora.data);
       if (resSemana.data) setAtendimentosSemana(resSemana.data);
     } catch (e) {
       console.error('Erro ao carregar dados do dashboard:', e);
+      setError('Erro de conexão. Verifique a URL e Anon Key nas Configurações.');
     } finally {
       setLoading(false);
     }
@@ -71,6 +89,16 @@ export default function DashboardView() {
     return (
       <div className="flex items-center justify-center h-64">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64 text-muted-foreground max-w-lg mx-auto text-center">
+        <AlertTriangle className="w-12 h-12 mb-3 text-destructive opacity-70" />
+        <p className="text-sm font-medium text-destructive">Erro ao carregar dados</p>
+        <p className="text-xs opacity-80 mt-2">{error}</p>
       </div>
     );
   }
