@@ -14,12 +14,6 @@ export default function SettingsView() {
     if (config) {
       setUrl(config.url);
       setAnonKey(config.anonKey);
-    } else {
-      // Pré-preenche com valores do projeto
-      const envUrl = import.meta.env.VITE_SUPABASE_URL;
-      const envKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-      if (envUrl) setUrl(envUrl);
-      if (envKey) setAnonKey(envKey);
     }
   }, []);
 
@@ -46,7 +40,7 @@ export default function SettingsView() {
           </div>
           <div>
             <h3 className="font-semibold text-card-foreground">Conexão com Banco de Dados</h3>
-            <p className="text-xs text-muted-foreground">Insira as credenciais para conectar ao Supabase e carregar as métricas do dashboard.</p>
+            <p className="text-xs text-muted-foreground">Insira a URL e Anon Key do seu projeto Supabase externo onde as métricas estão armazenadas.</p>
           </div>
         </div>
 
