@@ -5,7 +5,7 @@ import {
 } from 'recharts';
 import StatCard from './StatCard';
 import ServiceMetric from './ServiceMetric';
-import { supabase } from '@/integrations/supabase/client';
+import { createDynamicSupabaseClient } from '@/lib/supabase-config';
 
 function formatSeconds(seg: number): string {
   if (!seg) return '0m 00s';
@@ -26,7 +26,11 @@ export default function DashboardView() {
 
   const fetchData = useCallback(async () => {
     try {
-      const db = supabase as any;
+      const db = createDynamicSupabaseClient();
+      if (!db) {
+        setLoading(false);
+        return;
+      }
       const [resTotal, resTempos, resHora, resSemana] = await Promise.all([
         db.from('v_total_atendimentos').select('*').maybeSingle(),
         db.from('v_tempos_operacionais').select('*').maybeSingle(),
@@ -50,6 +54,18 @@ export default function DashboardView() {
     const interval = setInterval(fetchData, 60000);
     return () => clearInterval(interval);
   }, [fetchData]);
+
+  const hasConfig = !!createDynamicSupabaseClient();
+
+  if (!hasConfig) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64 text-muted-foreground">
+        <Calendar className="w-12 h-12 mb-3 opacity-40" />
+        <p className="text-sm font-medium">Configuração necessária</p>
+        <p className="text-xs opacity-70 mt-1">Acesse <strong>Configurações</strong> e insira a URL e Anon Key do banco de dados.</p>
+      </div>
+    );
+  }
 
   if (loading) {
     return (
