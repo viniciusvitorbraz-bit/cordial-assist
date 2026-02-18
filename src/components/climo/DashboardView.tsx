@@ -55,10 +55,14 @@ export default function DashboardView() {
         console.error('Erros nas queries do dashboard:', errors);
       }
 
-      if (resTotal.data) setTotalAtendimentos(resTotal.data);
-      if (resTempos.data) setTempos(resTempos.data);
-      if (resHora.data) setVolumeHora(resHora.data);
-      if (resSemana.data) setAtendimentosSemana(resSemana.data);
+      setTotalAtendimentos(resTotal.data ?? null);
+      setTempos(resTempos.data ? {
+        tempo_conversa_ia_seg: resTempos.data.tempo_conversa_ia_seg ?? 0,
+        tempo_intervencao_seg: resTempos.data.tempo_intervencao_seg ?? 0,
+        tempo_resolucao_total_seg: resTempos.data.tempo_resolucao_total_seg ?? 0,
+      } : null);
+      setVolumeHora(resHora.data ?? []);
+      setAtendimentosSemana(resSemana.data ?? []);
     } catch (e) {
       console.error('Erro ao carregar dados do dashboard:', e);
       setError('Erro de conexão. Verifique a URL e Anon Key nas Configurações.');
