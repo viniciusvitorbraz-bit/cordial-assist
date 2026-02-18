@@ -1,20 +1,63 @@
-import { useState } from 'react';
-import { Calendar, ChevronDown, Timer, UserCheck, CheckCircle2 } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { Calendar, ChevronDown, Timer, UserCheck, CheckCircle2, Loader2 } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell,
 } from 'recharts';
 import StatCard from './StatCard';
 import ServiceMetric from './ServiceMetric';
-import { hourlyVolumeData } from '@/data/climo-data';
+import { supabase } from '@/integrations/supabase/client';
 
-const weeklyVolumeData = [
-  { day: 'Seg', volume: 145 }, { day: 'Ter', volume: 132 }, { day: 'Qua', volume: 164 },
-  { day: 'Qui', volume: 150 }, { day: 'Sex', volume: 158 }, { day: 'Sáb', volume: 45 }, { day: 'Dom', volume: 22 },
-];
+function formatSeconds(seg: number): string {
+  if (!seg) return '0m 00s';
+  const m = Math.floor(seg / 60);
+  const s = seg % 60;
+  return `${m}m ${String(s).padStart(2, '0')}s`;
+}
 
 export default function DashboardView() {
   const [dateRange, setDateRange] = useState('Hoje');
   const [isDateDropdownOpen, setIsDateDropdownOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  const [totalAtendimentos, setTotalAtendimentos] = useState<{ hoje: number; ontem: number; crescimento_pct: number } | null>(null);
+  const [tempos, setTempos] = useState<{ tempo_conversa_ia_seg: number; tempo_intervencao_seg: number; tempo_resolucao_total_seg: number } | null>(null);
+  const [volumeHora, setVolumeHora] = useState<{ hora: string; total: number }[]>([]);
+  const [atendimentosSemana, setAtendimentosSemana] = useState<{ dia: string; total: number }[]>([]);
+
+  const fetchData = useCallback(async () => {
+    try {
+      const db = supabase as any;
+      const [resTotal, resTempos, resHora, resSemana] = await Promise.all([
+        db.from('v_total_atendimentos').select('*').maybeSingle(),
+        db.from('v_tempos_operacionais').select('*').maybeSingle(),
+        db.from('v_volume_por_hora').select('*'),
+        db.from('v_atendimentos_semana').select('*'),
+      ]);
+
+      if (resTotal.data) setTotalAtendimentos(resTotal.data);
+      if (resTempos.data) setTempos(resTempos.data);
+      if (resHora.data) setVolumeHora(resHora.data);
+      if (resSemana.data) setAtendimentosSemana(resSemana.data);
+    } catch (e) {
+      console.error('Erro ao carregar dados do dashboard:', e);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchData();
+    const interval = setInterval(fetchData, 60000);
+    return () => clearInterval(interval);
+  }, [fetchData]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">
@@ -53,7 +96,14 @@ export default function DashboardView() {
       </div>
 
       <div className="grid grid-cols-1 gap-6">
-        <StatCard title="Total Atendimentos" value="382" subtext="No período selecionado" trend="up" trendValue="15%" highlight />
+        <StatCard
+          title="Total Atendimentos"
+          value={String(totalAtendimentos?.hoje ?? 0)}
+          subtext="No período selecionado"
+          trend={totalAtendimentos && totalAtendimentos.crescimento_pct >= 0 ? 'up' : 'down'}
+          trendValue={`${Math.abs(totalAtendimentos?.crescimento_pct ?? 0)}%`}
+          highlight
+        />
       </div>
 
       {/* Tempos Operacionais */}
@@ -62,9 +112,9 @@ export default function DashboardView() {
           <Timer className="w-4 h-4 text-chart-1" /> Tempos Operacionais
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <ServiceMetric label="Tempo Médio de Conversa" value="3m 12s" subValue="Duração total" icon={Timer} colorClass="bg-chart-1/15 text-chart-1" />
-          <ServiceMetric label="Tempo até Intervenção" value="1m 45s" subValue="Escalonamento humano" icon={UserCheck} colorClass="bg-chart-3/15 text-chart-3" />
-          <ServiceMetric label="Tempo de Resolução Total" value="4m 30s" subValue="Do início ao fim" icon={CheckCircle2} colorClass="bg-climo-cyan/15 text-climo-cyan" />
+          <ServiceMetric label="Tempo Médio de Conversa" value={formatSeconds(tempos?.tempo_conversa_ia_seg ?? 0)} subValue="Duração total" icon={Timer} colorClass="bg-chart-1/15 text-chart-1" />
+          <ServiceMetric label="Tempo até Intervenção" value={formatSeconds(tempos?.tempo_intervencao_seg ?? 0)} subValue="Escalonamento humano" icon={UserCheck} colorClass="bg-chart-3/15 text-chart-3" />
+          <ServiceMetric label="Tempo de Resolução Total" value={formatSeconds(tempos?.tempo_resolucao_total_seg ?? 0)} subValue="Do início ao fim" icon={CheckCircle2} colorClass="bg-climo-cyan/15 text-climo-cyan" />
         </div>
       </div>
 
@@ -76,17 +126,17 @@ export default function DashboardView() {
           </div>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={hourlyVolumeData}>
+              <BarChart data={volumeHora}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(220, 20%, 90%)" />
-                <XAxis dataKey="hour" axisLine={false} tickLine={false} tick={{ fill: 'hsl(230, 20%, 45%)', fontSize: 12 }} />
+                <XAxis dataKey="hora" axisLine={false} tickLine={false} tick={{ fill: 'hsl(230, 20%, 45%)', fontSize: 12 }} />
                 <YAxis axisLine={false} tickLine={false} tick={{ fill: 'hsl(230, 20%, 45%)', fontSize: 12 }} />
                 <Tooltip
                   cursor={{ fill: 'hsl(220, 25%, 96%)' }}
                   contentStyle={{ backgroundColor: 'hsl(0, 0%, 100%)', borderColor: 'hsl(220, 20%, 90%)', borderRadius: '0.5rem', color: 'hsl(235, 50%, 20%)' }}
                 />
-                <Bar dataKey="volume" radius={[4, 4, 0, 0]}>
-                  {hourlyVolumeData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.volume > 50 ? 'hsl(235, 70%, 25%)' : 'hsl(200, 70%, 50%)'} />
+                <Bar dataKey="total" radius={[4, 4, 0, 0]}>
+                  {volumeHora.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.total > 50 ? 'hsl(235, 70%, 25%)' : 'hsl(200, 70%, 50%)'} />
                   ))}
                 </Bar>
               </BarChart>
@@ -101,17 +151,17 @@ export default function DashboardView() {
           </div>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={weeklyVolumeData}>
+              <BarChart data={atendimentosSemana}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(220, 20%, 90%)" />
-                <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fill: 'hsl(230, 20%, 45%)', fontSize: 12 }} />
+                <XAxis dataKey="dia" axisLine={false} tickLine={false} tick={{ fill: 'hsl(230, 20%, 45%)', fontSize: 12 }} />
                 <YAxis axisLine={false} tickLine={false} tick={{ fill: 'hsl(230, 20%, 45%)', fontSize: 12 }} />
                 <Tooltip
                   cursor={{ fill: 'hsl(220, 25%, 96%)' }}
                   contentStyle={{ backgroundColor: 'hsl(0, 0%, 100%)', borderColor: 'hsl(220, 20%, 90%)', borderRadius: '0.5rem', color: 'hsl(235, 50%, 20%)' }}
                 />
-                <Bar dataKey="volume" radius={[4, 4, 0, 0]}>
-                  {weeklyVolumeData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.volume > 100 ? 'hsl(235, 70%, 25%)' : 'hsl(200, 70%, 50%)'} />
+                <Bar dataKey="total" radius={[4, 4, 0, 0]}>
+                  {atendimentosSemana.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.total > 100 ? 'hsl(235, 70%, 25%)' : 'hsl(200, 70%, 50%)'} />
                   ))}
                 </Bar>
               </BarChart>
