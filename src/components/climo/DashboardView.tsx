@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Calendar, ChevronDown, Timer, Loader2, AlertTriangle, Target, ArrowUpRight } from 'lucide-react';
+import { Calendar, ChevronDown, Timer, Loader2, AlertTriangle, Target } from 'lucide-react';
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line,
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from 'recharts';
 import { createDynamicSupabaseClient } from '@/lib/supabase-config';
 import { type DateRangeKey, getDateRange, fetchDashboardMetrics, type DashboardMetrics } from '@/lib/dashboard-queries';
@@ -15,15 +15,6 @@ function formatSeconds(seg: number): string {
 
 const DATE_OPTIONS: DateRangeKey[] = ['Hoje', 'Ontem', 'Últimos 7 dias', 'Últimos 30 dias'];
 
-const weeklyData = [
-  { day: '13 de fev.', resolvidoIA: 20, transbordo: 8, trend: 10 },
-  { day: '14 de fev.', resolvidoIA: 25, transbordo: 10, trend: 15 },
-  { day: '15 de fev.', resolvidoIA: 45, transbordo: 10, trend: 22 },
-  { day: '16 de fev.', resolvidoIA: 35, transbordo: 13, trend: 18 },
-  { day: '17 de fev.', resolvidoIA: 35, transbordo: 10, trend: 17 },
-  { day: '18 de fev.', resolvidoIA: 10, transbordo: 5, trend: 12 },
-  { day: '19 de fev.', resolvidoIA: 25, transbordo: 7, trend: 14 },
-];
 
 export default function DashboardView() {
   const [dateRange, setDateRange] = useState<DateRangeKey>('Hoje');
@@ -131,13 +122,10 @@ export default function DashboardView() {
         <div className="lg:col-span-2 bg-card border border-border rounded-lg p-6 shadow-climo-sm flex flex-col h-full">
           <div className="flex justify-between items-start mb-6">
             <h3 className="text-lg font-semibold text-foreground">Atendimentos Últimos 7 dias</h3>
-            <div className="bg-emerald-500/10 text-emerald-600 text-xs font-bold px-2.5 py-1 rounded-md flex items-center gap-1">
-              <ArrowUpRight className="w-3 h-3" /> +15.2%
-            </div>
           </div>
           <div className="flex-1 w-full min-h-[250px]">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={weeklyData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+              <BarChart data={metrics?.weeklyData ?? []} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
                 <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12, fontWeight: 500 }} dy={10} />
                 <YAxis axisLine={false} tickLine={false} tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12, fontWeight: 500 }} />
