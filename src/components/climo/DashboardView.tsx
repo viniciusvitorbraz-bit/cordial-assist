@@ -133,7 +133,7 @@ export default function DashboardView() {
         <h3 className="text-sm font-bold text-foreground uppercase tracking-wide mb-4 flex items-center gap-2">
           <Timer className="w-4 h-4 text-chart-1" /> Tempos Operacionais
         </h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <ServiceMetric
             label="Tempo Médio Conversa IA"
             value={formatSeconds(metrics?.tempoConversaIaSeg ?? 0)}
@@ -147,13 +147,6 @@ export default function DashboardView() {
             subValue="ai_finished → human_started"
             icon={UserCheck}
             colorClass="bg-chart-3/15 text-chart-3"
-          />
-          <ServiceMetric
-            label="Tempo Total Atendimento"
-            value={formatSeconds(metrics?.tempoTotalSeg ?? 0)}
-            subValue="ai_started → human_started"
-            icon={CheckCircle2}
-            colorClass="bg-climo-cyan/15 text-climo-cyan"
           />
         </div>
       </div>
