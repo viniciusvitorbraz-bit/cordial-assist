@@ -1,10 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Calendar, ChevronDown, Timer, UserCheck, CheckCircle2, Loader2, AlertTriangle, Bot } from 'lucide-react';
+import { Calendar, ChevronDown, Timer, Loader2, AlertTriangle, Target, ArrowUpRight } from 'lucide-react';
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell,
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line,
 } from 'recharts';
-import StatCard from './StatCard';
-import ServiceMetric from './ServiceMetric';
 import { createDynamicSupabaseClient } from '@/lib/supabase-config';
 import { type DateRangeKey, getDateRange, fetchDashboardMetrics, type DashboardMetrics } from '@/lib/dashboard-queries';
 
@@ -16,6 +14,16 @@ function formatSeconds(seg: number): string {
 }
 
 const DATE_OPTIONS: DateRangeKey[] = ['Hoje', 'Ontem', 'Últimos 7 dias', 'Últimos 30 dias'];
+
+const weeklyData = [
+  { day: '13 de fev.', resolvidoIA: 20, transbordo: 8, trend: 10 },
+  { day: '14 de fev.', resolvidoIA: 25, transbordo: 10, trend: 15 },
+  { day: '15 de fev.', resolvidoIA: 45, transbordo: 10, trend: 22 },
+  { day: '16 de fev.', resolvidoIA: 35, transbordo: 13, trend: 18 },
+  { day: '17 de fev.', resolvidoIA: 35, transbordo: 10, trend: 17 },
+  { day: '18 de fev.', resolvidoIA: 10, transbordo: 5, trend: 12 },
+  { day: '19 de fev.', resolvidoIA: 25, transbordo: 7, trend: 14 },
+];
 
 export default function DashboardView() {
   const [dateRange, setDateRange] = useState<DateRangeKey>('Hoje');
@@ -82,23 +90,21 @@ export default function DashboardView() {
   }
 
   return (
-    <div className="space-y-8">
-      {/* Header + Date Filter */}
-      <div className="flex justify-between items-end">
+    <div className="space-y-6">
+      {/* Título e Filtro */}
+      <div className="flex justify-between items-end mb-2">
         <div>
-          <h2 className="text-xl font-bold text-foreground">Visão Geral de Performance</h2>
-          <p className="text-sm text-muted-foreground">Métricas consolidadas de atendimento e operação</p>
+          <h2 className="text-2xl font-bold text-foreground tracking-tight">Visão Geral</h2>
+          <p className="text-sm text-muted-foreground mt-1">Acompanhe o volume e a velocidade de atendimento.</p>
         </div>
-        <div className="relative">
+        <div className="flex gap-2 relative">
           <button
             onClick={() => setIsDateDropdownOpen(!isDateDropdownOpen)}
-            className="flex items-center gap-2 px-3 py-1.5 bg-card border border-border rounded-lg text-sm font-medium text-foreground hover:bg-muted shadow-climo-sm min-w-[160px] justify-between"
+            className="flex items-center gap-2 px-4 py-2 bg-card border border-border rounded-lg text-sm font-semibold text-foreground hover:bg-muted transition-colors shadow-sm"
           >
-            <div className="flex items-center gap-2">
-              <Calendar className="w-4 h-4 text-muted-foreground" />
-              <span>{dateRange}</span>
-            </div>
-            <ChevronDown className={`w-3 h-3 transition-transform text-muted-foreground ${isDateDropdownOpen ? 'rotate-180' : ''}`} />
+            <Calendar className="w-4 h-4 text-muted-foreground" />
+            <span>{dateRange}</span>
+            <ChevronDown className="w-4 h-4 text-muted-foreground ml-2" />
           </button>
           {isDateDropdownOpen && (
             <div className="absolute top-full right-0 mt-2 w-48 bg-card border border-border rounded-lg shadow-climo-md z-50 overflow-hidden">
@@ -118,68 +124,74 @@ export default function DashboardView() {
         </div>
       </div>
 
-      {/* Total Atendimentos */}
-      <div className="grid grid-cols-1 gap-6">
-        <StatCard
-          title="Total Atendimentos"
-          value={String(metrics?.totalAtendimentos ?? 0)}
-          subtext="No período selecionado"
-          highlight
-        />
-      </div>
+      {/* O NOVO LAYOUT DE 3 PAINÉIS */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:h-[420px]">
 
-      {/* Tempos Operacionais */}
-      <div>
-        <h3 className="text-sm font-bold text-foreground uppercase tracking-wide mb-4 flex items-center gap-2">
-          <Timer className="w-4 h-4 text-chart-1" /> Tempos Operacionais
-        </h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <ServiceMetric
-            label="Tempo Médio Conversa IA"
-            value={formatSeconds(metrics?.tempoConversaIaSeg ?? 0)}
-            subValue="ai_started → ai_finished"
-            icon={Bot}
-            colorClass="bg-chart-2/15 text-chart-2"
-          />
-          <ServiceMetric
-            label="Tempo Espera Humano"
-            value={formatSeconds(metrics?.tempoEsperaHumanoSeg ?? 0)}
-            subValue="ai_finished → human_started"
-            icon={UserCheck}
-            colorClass="bg-chart-3/15 text-chart-3"
-          />
-        </div>
-      </div>
-
-      {/* Volume por Hora */}
-      <div className="bg-card p-6 border border-border rounded-lg shadow-climo-sm">
-        <div className="mb-6">
-          <h3 className="font-bold text-card-foreground">Volume por Hora</h3>
-          <p className="text-xs text-muted-foreground">Distribuição de demanda ao longo do dia ({dateRange})</p>
-        </div>
-        <div className="h-64">
-          {metrics && metrics.volumePorHora.length > 0 ? (
+        {/* PAINEL ESQUERDO: Gráfico de Barras Empilhadas */}
+        <div className="lg:col-span-2 bg-card border border-border rounded-lg p-6 shadow-climo-sm flex flex-col h-full">
+          <div className="flex justify-between items-start mb-6">
+            <h3 className="text-lg font-semibold text-foreground">Atendimentos Últimos 7 dias</h3>
+            <div className="bg-emerald-500/10 text-emerald-600 text-xs font-bold px-2.5 py-1 rounded-md flex items-center gap-1">
+              <ArrowUpRight className="w-3 h-3" /> +15.2%
+            </div>
+          </div>
+          <div className="flex-1 w-full min-h-[250px]">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={metrics.volumePorHora}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(220, 20%, 90%)" />
-                <XAxis dataKey="hora" axisLine={false} tickLine={false} tick={{ fill: 'hsl(230, 20%, 45%)', fontSize: 12 }} />
-                <YAxis axisLine={false} tickLine={false} tick={{ fill: 'hsl(230, 20%, 45%)', fontSize: 12 }} />
-                <Tooltip
-                  cursor={{ fill: 'hsl(220, 25%, 96%)' }}
-                  contentStyle={{ backgroundColor: 'hsl(0, 0%, 100%)', borderColor: 'hsl(220, 20%, 90%)', borderRadius: '0.5rem', color: 'hsl(235, 50%, 20%)' }}
-                />
-                <Bar dataKey="total" radius={[4, 4, 0, 0]}>
-                  {metrics.volumePorHora.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.total > 50 ? 'hsl(235, 70%, 25%)' : 'hsl(200, 70%, 50%)'} />
-                  ))}
-                </Bar>
+              <BarChart data={weeklyData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
+                <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12, fontWeight: 500 }} dy={10} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12, fontWeight: 500 }} />
+                <Tooltip cursor={{ fill: 'hsl(var(--muted))', opacity: 0.5 }} contentStyle={{ backgroundColor: 'hsl(var(--popover))', borderColor: 'hsl(var(--border))', borderRadius: '8px', color: 'hsl(var(--popover-foreground))', fontWeight: 500 }} />
+                <Bar dataKey="resolvidoIA" stackId="a" fill="hsl(var(--chart-1))" name="Resolvido IA" maxBarSize={50} />
+                <Bar dataKey="transbordo" stackId="a" fill="hsl(var(--chart-2))" name="Transbordo" radius={[6, 6, 0, 0]} maxBarSize={50} />
               </BarChart>
             </ResponsiveContainer>
-          ) : (
-            <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
-              Sem dados para o período selecionado
+          </div>
+        </div>
+
+        {/* PAINEL DIREITO: 2 Cards Empilhados */}
+        <div className="lg:col-span-1 flex flex-col gap-6 h-full">
+
+          {/* Card 1: Total de Atendimentos */}
+          <div className="bg-card border border-border rounded-lg p-6 shadow-climo-sm flex-1 flex flex-col justify-between">
+            <div className="flex justify-between items-start">
+              <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Total de Atendimentos</h3>
+              <Target className="w-5 h-5 text-chart-1" />
             </div>
-          )}
+            <div className="flex items-baseline gap-3 my-4">
+              <span className="text-6xl font-bold text-foreground tracking-tight">{metrics?.totalAtendimentos ?? 0}</span>
+              <span className="text-sm font-semibold text-emerald-500">no período</span>
+            </div>
+            <div className="mt-auto">
+              <div className="flex justify-between items-end mb-2">
+                <span className="text-xs font-medium text-muted-foreground">Resolvidos pela IA</span>
+                <span className="text-sm font-bold text-foreground">—</span>
+              </div>
+              <div className="w-full bg-muted rounded-full h-2.5 overflow-hidden">
+                <div className="bg-chart-1 h-full rounded-full" style={{ width: '72%' }}></div>
+              </div>
+            </div>
+          </div>
+
+          {/* Card 2: Tempo Médio Conversa IA */}
+          <div className="bg-card border border-border rounded-lg p-6 shadow-climo-sm flex-1 flex flex-col justify-between relative overflow-hidden">
+            <div className="flex justify-between items-start relative z-10">
+              <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Tempo Médio Conversa IA</h3>
+              <Timer className="w-5 h-5 text-chart-1" />
+            </div>
+            <div className="my-4 relative z-10">
+              <span className="text-5xl font-bold text-foreground tracking-tight">{formatSeconds(metrics?.tempoConversaIaSeg ?? 0)}</span>
+              <p className="text-[11px] text-muted-foreground font-mono mt-1">ai_started → ai_finished</p>
+            </div>
+            <div className="absolute bottom-0 left-0 right-0 h-20 opacity-50 pointer-events-none">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={weeklyData}>
+                  <Line type="monotone" dataKey="trend" stroke="hsl(var(--chart-2))" strokeWidth={4} dot={false} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
         </div>
       </div>
     </div>
