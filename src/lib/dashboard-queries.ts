@@ -36,12 +36,19 @@ export function getDateRange(key: DateRangeKey, customRange?: DateRange): DateRa
   }
 }
 
+export interface WeeklyDayData {
+  day: string;
+  resolvidoIA: number;
+  transbordo: number;
+}
+
 export interface DashboardMetrics {
   totalAtendimentos: number;
   volumePorHora: { hora: string; total: number }[];
   tempoConversaIaSeg: number;
   tempoEsperaHumanoSeg: number;
   tempoTotalSeg: number;
+  weeklyData: WeeklyDayData[];
 }
 
 export async function fetchDashboardMetrics(
@@ -65,6 +72,7 @@ export async function fetchDashboardMetrics(
       tempoConversaIaSeg: 0,
       tempoEsperaHumanoSeg: 0,
       tempoTotalSeg: 0,
+      weeklyData: [],
     };
   }
 
@@ -85,6 +93,10 @@ export async function fetchDashboardMetrics(
   const temposEspera: number[] = [];
   const temposTotal: number[] = [];
 
+  // Daily counts for weekly chart
+  const dailyResolvido = new Map<string, number>();
+  const dailyTransbordo = new Map<string, number>();
+
   for (const [, evts] of byConversation) {
     const getTime = (type: string) => {
       const e = evts.find(ev => ev.event_type === type);
@@ -99,24 +111,29 @@ export async function fetchDashboardMetrics(
     // Count conversation_started
     if (conversationStarted !== null) {
       totalAtendimentos++;
-      // 2️⃣ Volume por hora
       const hour = new Date(conversationStarted).getHours();
       hourCounts.set(hour, (hourCounts.get(hour) ?? 0) + 1);
+
+      // Daily grouping for weekly chart
+      const dateKey = new Date(conversationStarted).toISOString().slice(0, 10);
+      const isTransbordo = humanStarted !== null;
+      if (isTransbordo) {
+        dailyTransbordo.set(dateKey, (dailyTransbordo.get(dateKey) ?? 0) + 1);
+      } else {
+        dailyResolvido.set(dateKey, (dailyResolvido.get(dateKey) ?? 0) + 1);
+      }
     }
 
-    // 3️⃣ Tempo conversa IA (ignore sem ai_started ou ai_finished)
     if (aiStarted !== null && aiFinished !== null) {
       const diff = (aiFinished - aiStarted) / 1000;
       if (diff > 0) temposIA.push(diff);
     }
 
-    // 4️⃣ Tempo espera humano (ai_finished → human_started)
     if (aiFinished !== null && humanStarted !== null) {
       const diff = (humanStarted - aiFinished) / 1000;
       if (diff > 0) temposEspera.push(diff);
     }
 
-    // 5️⃣ Tempo total (ai_started → human_started)
     if (aiStarted !== null && humanStarted !== null) {
       const diff = (humanStarted - aiStarted) / 1000;
       if (diff > 0) temposTotal.push(diff);
@@ -132,6 +149,20 @@ export async function fetchDashboardMetrics(
     }
   }
 
+  // Build weekly data (last 7 days sorted)
+  const allDays = new Set([...dailyResolvido.keys(), ...dailyTransbordo.keys()]);
+  const weeklyData: WeeklyDayData[] = Array.from(allDays)
+    .sort()
+    .map(dateKey => {
+      const d = new Date(dateKey + 'T12:00:00');
+      const day = d.toLocaleDateString('pt-BR', { day: 'numeric', month: 'short' });
+      return {
+        day,
+        resolvidoIA: dailyResolvido.get(dateKey) ?? 0,
+        transbordo: dailyTransbordo.get(dateKey) ?? 0,
+      };
+    });
+
   const avg = (arr: number[]) => arr.length === 0 ? 0 : Math.round(arr.reduce((a, b) => a + b, 0) / arr.length);
 
   return {
@@ -140,5 +171,6 @@ export async function fetchDashboardMetrics(
     tempoConversaIaSeg: avg(temposIA),
     tempoEsperaHumanoSeg: avg(temposEspera),
     tempoTotalSeg: avg(temposTotal),
+    weeklyData,
   };
 }
