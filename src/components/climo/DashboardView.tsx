@@ -162,15 +162,6 @@ export default function DashboardView() {
               <span className="text-6xl font-bold text-foreground tracking-tight">{metrics?.totalAtendimentos ?? 0}</span>
               <span className="text-sm font-semibold text-emerald-500">no período</span>
             </div>
-            <div className="mt-auto">
-              <div className="flex justify-between items-end mb-2">
-                <span className="text-xs font-medium text-muted-foreground">Resolvidos pela IA</span>
-                <span className="text-sm font-bold text-foreground">—</span>
-              </div>
-              <div className="w-full bg-muted rounded-full h-2.5 overflow-hidden">
-                <div className="bg-chart-1 h-full rounded-full" style={{ width: '72%' }}></div>
-              </div>
-            </div>
           </div>
 
           {/* Card 2: Tempo Médio Conversa IA */}
@@ -181,7 +172,7 @@ export default function DashboardView() {
             </div>
             <div className="my-4 relative z-10">
               <span className="text-5xl font-bold text-foreground tracking-tight">{formatSeconds(metrics?.tempoConversaIaSeg ?? 0)}</span>
-              <p className="text-[11px] text-muted-foreground font-mono mt-1">ai_started → ai_finished</p>
+              <p className="text-[11px] text-muted-foreground font-mono mt-1">Início ao fim do atendimento</p>
             </div>
             <div className="absolute bottom-0 left-0 right-0 h-20 opacity-50 pointer-events-none">
               <ResponsiveContainer width="100%" height="100%">
