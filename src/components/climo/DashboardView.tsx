@@ -1,11 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Calendar, ChevronDown, Timer, UserCheck, CheckCircle2, Loader2, AlertTriangle } from 'lucide-react';
+import { Calendar, ChevronDown, Timer, UserCheck, CheckCircle2, Loader2, AlertTriangle, Bot } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell,
 } from 'recharts';
 import StatCard from './StatCard';
 import ServiceMetric from './ServiceMetric';
 import { createDynamicSupabaseClient } from '@/lib/supabase-config';
+import { type DateRangeKey, getDateRange, fetchDashboardMetrics, type DashboardMetrics } from '@/lib/dashboard-queries';
 
 function formatSeconds(seg: number): string {
   if (!seg) return '0m 00s';
@@ -14,62 +15,35 @@ function formatSeconds(seg: number): string {
   return `${m}m ${String(s).padStart(2, '0')}s`;
 }
 
+const DATE_OPTIONS: DateRangeKey[] = ['Hoje', 'Ontem', 'Últimos 7 dias', 'Últimos 30 dias'];
+
 export default function DashboardView() {
-  const [dateRange, setDateRange] = useState('Hoje');
+  const [dateRange, setDateRange] = useState<DateRangeKey>('Hoje');
   const [isDateDropdownOpen, setIsDateDropdownOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  const [totalAtendimentos, setTotalAtendimentos] = useState<{ hoje: number; ontem: number; crescimento_pct: number } | null>(null);
-  const [tempos, setTempos] = useState<{ tempo_conversa_ia_seg: number; tempo_intervencao_seg: number; tempo_resolucao_total_seg: number } | null>(null);
-  const [volumeHora, setVolumeHora] = useState<{ hora: string; total: number }[]>([]);
-  const [atendimentosSemana, setAtendimentosSemana] = useState<{ dia: string; total: number }[]>([]);
+  const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
 
   const fetchData = useCallback(async () => {
     try {
+      setLoading(true);
       setError(null);
       const db = createDynamicSupabaseClient();
       if (!db) {
         setLoading(false);
         return;
       }
-      const [resTotal, resTempos, resHora, resSemana] = await Promise.all([
-        db.from('v_total_atendimentos').select('*').maybeSingle(),
-        db.from('v_tempos_operacionais').select('*').maybeSingle(),
-        db.from('v_volume_por_hora').select('*'),
-        db.from('v_atendimentos_semana').select('*'),
-      ]);
 
-      // Check for errors (e.g. views not found)
-      const errors = [resTotal, resTempos, resHora, resSemana]
-        .filter(r => r.error)
-        .map(r => r.error!.message);
-
-      if (errors.length > 0) {
-        const isNotFound = errors.some(e => e.includes('Could not find'));
-        if (isNotFound) {
-          setError('As views do dashboard não foram encontradas no banco de dados. Verifique se a URL e Anon Key em Configurações apontam para o projeto correto onde as views (v_total_atendimentos, v_tempos_operacionais, v_volume_por_hora, v_atendimentos_semana) foram criadas.');
-        } else {
-          setError(`Erro ao consultar dados: ${errors[0]}`);
-        }
-        console.error('Erros nas queries do dashboard:', errors);
-      }
-
-      setTotalAtendimentos(resTotal.data ?? null);
-      setTempos(resTempos.data ? {
-        tempo_conversa_ia_seg: resTempos.data.tempo_conversa_ia_seg ?? 0,
-        tempo_intervencao_seg: resTempos.data.tempo_intervencao_seg ?? 0,
-        tempo_resolucao_total_seg: resTempos.data.tempo_resolucao_total_seg ?? 0,
-      } : null);
-      setVolumeHora(resHora.data ?? []);
-      setAtendimentosSemana(resSemana.data ?? []);
-    } catch (e) {
+      const range = getDateRange(dateRange);
+      const result = await fetchDashboardMetrics(db, range);
+      setMetrics(result);
+    } catch (e: any) {
       console.error('Erro ao carregar dados do dashboard:', e);
-      setError('Erro de conexão. Verifique a URL e Anon Key nas Configurações.');
+      setError(e.message || 'Erro de conexão. Verifique a URL e Anon Key nas Configurações.');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [dateRange]);
 
   useEffect(() => {
     fetchData();
@@ -109,6 +83,7 @@ export default function DashboardView() {
 
   return (
     <div className="space-y-8">
+      {/* Header + Date Filter */}
       <div className="flex justify-between items-end">
         <div>
           <h2 className="text-xl font-bold text-foreground">Visão Geral de Performance</h2>
@@ -127,7 +102,7 @@ export default function DashboardView() {
           </button>
           {isDateDropdownOpen && (
             <div className="absolute top-full right-0 mt-2 w-48 bg-card border border-border rounded-lg shadow-climo-md z-50 overflow-hidden">
-              {['Hoje', 'Ontem', 'Últimos 7 dias', 'Últimos 30 dias'].map((option) => (
+              {DATE_OPTIONS.map((option) => (
                 <button
                   key={option}
                   onClick={() => { setDateRange(option); setIsDateDropdownOpen(false); }}
@@ -143,13 +118,12 @@ export default function DashboardView() {
         </div>
       </div>
 
+      {/* Total Atendimentos */}
       <div className="grid grid-cols-1 gap-6">
         <StatCard
           title="Total Atendimentos"
-          value={String(totalAtendimentos?.hoje ?? 0)}
+          value={String(metrics?.totalAtendimentos ?? 0)}
           subtext="No período selecionado"
-          trend={totalAtendimentos && totalAtendimentos.crescimento_pct >= 0 ? 'up' : 'down'}
-          trendValue={`${Math.abs(totalAtendimentos?.crescimento_pct ?? 0)}%`}
           highlight
         />
       </div>
@@ -160,21 +134,40 @@ export default function DashboardView() {
           <Timer className="w-4 h-4 text-chart-1" /> Tempos Operacionais
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <ServiceMetric label="Tempo Médio de Conversa" value={formatSeconds(tempos?.tempo_conversa_ia_seg ?? 0)} subValue="Duração total" icon={Timer} colorClass="bg-chart-1/15 text-chart-1" />
-          <ServiceMetric label="Tempo até Intervenção" value={formatSeconds(tempos?.tempo_intervencao_seg ?? 0)} subValue="Escalonamento humano" icon={UserCheck} colorClass="bg-chart-3/15 text-chart-3" />
-          <ServiceMetric label="Tempo de Resolução Total" value={formatSeconds(tempos?.tempo_resolucao_total_seg ?? 0)} subValue="Do início ao fim" icon={CheckCircle2} colorClass="bg-climo-cyan/15 text-climo-cyan" />
+          <ServiceMetric
+            label="Tempo Médio Conversa IA"
+            value={formatSeconds(metrics?.tempoConversaIaSeg ?? 0)}
+            subValue="ai_started → ai_finished"
+            icon={Bot}
+            colorClass="bg-chart-2/15 text-chart-2"
+          />
+          <ServiceMetric
+            label="Tempo Espera Humano"
+            value={formatSeconds(metrics?.tempoEsperaHumanoSeg ?? 0)}
+            subValue="ai_finished → human_started"
+            icon={UserCheck}
+            colorClass="bg-chart-3/15 text-chart-3"
+          />
+          <ServiceMetric
+            label="Tempo Total Atendimento"
+            value={formatSeconds(metrics?.tempoTotalSeg ?? 0)}
+            subValue="ai_started → human_started"
+            icon={CheckCircle2}
+            colorClass="bg-climo-cyan/15 text-climo-cyan"
+          />
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-card p-6 border border-border rounded-lg shadow-climo-sm">
-          <div className="mb-6">
-            <h3 className="font-bold text-card-foreground">Volume por Hora</h3>
-            <p className="text-xs text-muted-foreground">Distribuição de demanda ao longo do dia</p>
-          </div>
-          <div className="h-64">
+      {/* Volume por Hora */}
+      <div className="bg-card p-6 border border-border rounded-lg shadow-climo-sm">
+        <div className="mb-6">
+          <h3 className="font-bold text-card-foreground">Volume por Hora</h3>
+          <p className="text-xs text-muted-foreground">Distribuição de demanda ao longo do dia ({dateRange})</p>
+        </div>
+        <div className="h-64">
+          {metrics && metrics.volumePorHora.length > 0 ? (
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={volumeHora}>
+              <BarChart data={metrics.volumePorHora}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(220, 20%, 90%)" />
                 <XAxis dataKey="hora" axisLine={false} tickLine={false} tick={{ fill: 'hsl(230, 20%, 45%)', fontSize: 12 }} />
                 <YAxis axisLine={false} tickLine={false} tick={{ fill: 'hsl(230, 20%, 45%)', fontSize: 12 }} />
@@ -183,38 +176,17 @@ export default function DashboardView() {
                   contentStyle={{ backgroundColor: 'hsl(0, 0%, 100%)', borderColor: 'hsl(220, 20%, 90%)', borderRadius: '0.5rem', color: 'hsl(235, 50%, 20%)' }}
                 />
                 <Bar dataKey="total" radius={[4, 4, 0, 0]}>
-                  {volumeHora.map((entry, index) => (
+                  {metrics.volumePorHora.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={entry.total > 50 ? 'hsl(235, 70%, 25%)' : 'hsl(200, 70%, 50%)'} />
                   ))}
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
-          </div>
-        </div>
-
-        <div className="bg-card p-6 border border-border rounded-lg shadow-climo-sm">
-          <div className="mb-6">
-            <h3 className="font-bold text-card-foreground">Atendimentos na Semana</h3>
-            <p className="text-xs text-muted-foreground">Volume diário de atendimentos</p>
-          </div>
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={atendimentosSemana}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(220, 20%, 90%)" />
-                <XAxis dataKey="dia" axisLine={false} tickLine={false} tick={{ fill: 'hsl(230, 20%, 45%)', fontSize: 12 }} />
-                <YAxis axisLine={false} tickLine={false} tick={{ fill: 'hsl(230, 20%, 45%)', fontSize: 12 }} />
-                <Tooltip
-                  cursor={{ fill: 'hsl(220, 25%, 96%)' }}
-                  contentStyle={{ backgroundColor: 'hsl(0, 0%, 100%)', borderColor: 'hsl(220, 20%, 90%)', borderRadius: '0.5rem', color: 'hsl(235, 50%, 20%)' }}
-                />
-                <Bar dataKey="total" radius={[4, 4, 0, 0]}>
-                  {atendimentosSemana.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.total > 100 ? 'hsl(235, 70%, 25%)' : 'hsl(200, 70%, 50%)'} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
+          ) : (
+            <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
+              Sem dados para o período selecionado
+            </div>
+          )}
         </div>
       </div>
     </div>
