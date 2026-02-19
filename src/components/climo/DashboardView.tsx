@@ -165,21 +165,13 @@ export default function DashboardView() {
           </div>
 
           {/* Card 2: Tempo Médio Conversa IA */}
-          <div className="bg-card border border-border rounded-lg p-6 shadow-climo-sm flex-1 flex flex-col justify-between relative overflow-hidden">
-            <div className="flex justify-between items-start relative z-10">
+          <div className="bg-card border border-border rounded-lg p-6 shadow-climo-sm flex-1 flex flex-col justify-between">
+            <div className="flex justify-between items-start">
               <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Tempo Médio Conversa IA</h3>
               <Timer className="w-5 h-5 text-chart-1" />
             </div>
-            <div className="my-4 relative z-10">
+            <div className="my-4">
               <span className="text-5xl font-bold text-foreground tracking-tight">{formatSeconds(metrics?.tempoConversaIaSeg ?? 0)}</span>
-              <p className="text-[11px] text-muted-foreground font-mono mt-1">Início ao fim do atendimento</p>
-            </div>
-            <div className="absolute bottom-0 left-0 right-0 h-20 opacity-50 pointer-events-none">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={weeklyData}>
-                  <Line type="monotone" dataKey="trend" stroke="hsl(var(--chart-2))" strokeWidth={4} dot={false} />
-                </LineChart>
-              </ResponsiveContainer>
             </div>
           </div>
 
