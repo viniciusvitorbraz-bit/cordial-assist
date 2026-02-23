@@ -60,11 +60,6 @@ export default function ClimoSidebar({
                 )}
                 <Icon className={`w-[18px] h-[18px] shrink-0 ${active ? 'text-sidebar-primary' : ''}`} />
                 {!collapsed && <span>{label}</span>}
-                {id === 'chat' && !collapsed && (
-                  <span className="ml-auto bg-sidebar-primary text-sidebar-primary-foreground text-[10px] font-bold px-1.5 py-0.5 rounded-full">
-                    3
-                  </span>
-                )}
               </button>
             );
           })}
