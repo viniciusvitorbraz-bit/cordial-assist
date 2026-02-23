@@ -1,77 +1,35 @@
 
-# Plano: Nova Logica de Dados do Dashboard
+## Transformar Volume por Hora em Grafico Dedicado
 
-## Situacao Atual
+### O que muda
 
-O dashboard atual tenta buscar dados de 4 views no Supabase externo:
-- `v_total_atendimentos` 
-- `v_tempos_operacionais`
-- `v_volume_por_hora`
-- `v_atendimentos_semana`
+O card pequeno "Volume / Hora" na segunda fileira sera substituido por um grafico de barras dedicado, ocupando toda a largura, posicionado como uma terceira fileira no dashboard. Os 3 cards restantes (Espera Humano, Horario de Pico, Variacao Periodo) continuam na segunda fileira, agora em 3 colunas.
 
-O problema principal e que o sistema pre-preenche com as credenciais do Lovable Cloud (onde nao existem essas views). Quando o usuario configura manualmente as credenciais do Supabase externo, os dados carregam corretamente (confirmado pelos requests com status 200 para `kolfmrmwekxtibwhlbaz.supabase.co`).
+### Layout final
 
-## Analise do Workflow n8n "Climo - Sara"
+```text
++---------------------------------------------+
+| Fileira 1 (existente - sem alteracao)        |
+| [Grafico 7 dias (2/3)]  [Cards direita(1/3)]|
++---------------------------------------------+
+| Fileira 2 (3 cards)                          |
+| [Espera Humano] [Horario Pico] [Variacao %]  |
++---------------------------------------------+
+| Fileira 3 (novo - largura total)             |
+| [Grafico Volume por Hora - 08h ate 18h]      |
++---------------------------------------------+
+```
 
-O workflow do n8n e bastante completo e faz o seguinte:
+### Detalhes tecnicos
 
-1. **Recebe mensagens via Webhook** (WhatsApp via UazAPI)
-2. **Processa diferentes tipos**: texto, audio (transcreve via OpenAI), imagem (analisa via GPT-4o-mini), mensagens efemeras
-3. **Gerencia clientes**: busca/cria na tabela `clientes_atendimento`
-4. **IA Recepcionista**: AI Agent com OpenAI + Redis Chat Memory + tools (Climo FAQ, Admissional, Periodico, RM, Demissional)
-5. **Registra metricas**:
-   - **NODE 1 -- INSERT Inicio**: insere registro de inicio de atendimento no Supabase
-   - **NODE 3 -- UPDATE human_joined_at**: atualiza quando um humano entra na conversa
-   - **Create a row2**: grava dados adicionais (provavelmente classificacao/resumo)
+**Arquivo: `src/lib/dashboard-queries.ts`**
+- Alterar a geracao de `volumePorHora` para sempre incluir todas as horas de 8 a 18 (mesmo com valor 0), garantindo que o grafico tenha o eixo X completo e consistente.
 
-O workflow parece funcional -- os nodes de Supabase estao conectados e o workflow esta ativo.
-
-## O Que Precisa Ser Feito
-
-### 1. Corrigir o pre-preenchimento das credenciais
-Atualmente o `SettingsView` preenche com valores do Lovable Cloud. Deve-se inverter a logica: se o usuario ja salvou credenciais do Supabase externo, usar essas. Caso contrario, **nao pre-preencher** com Lovable Cloud (pois confunde o usuario).
-
-### 2. Refatorar o DashboardView para ser mais robusto
-- Tratar o caso onde `maybeSingle()` retorna `null` mas nao erro
-- Melhorar tratamento dos dados retornados pelas views (arrays vs objetos)
-- Garantir que `v_total_atendimentos` retorna um unico objeto e `v_volume_por_hora` / `v_atendimentos_semana` retornam arrays
-
-### 3. Melhorar feedback de estado
-- Se nenhuma credencial esta configurada, mostrar instrucoes claras pedindo URL e Anon Key do Supabase externo
-- Remover referencia a "Lovable Cloud" no pre-preenchimento
-
-## Detalhes Tecnicos
-
-### Arquivo: `src/components/climo/SettingsView.tsx`
-- Remover o pre-preenchimento automatico com `import.meta.env.VITE_SUPABASE_URL` e `VITE_SUPABASE_PUBLISHABLE_KEY`
-- Manter os campos vazios se nao houver config salva, para o usuario preencher com as credenciais do Supabase externo
-- Adicionar um texto explicativo: "Insira a URL e Anon Key do seu projeto Supabase onde as metricas estao armazenadas"
-
-### Arquivo: `src/components/climo/DashboardView.tsx`
-- Corrigir o `fetchData` para tratar corretamente os tipos de retorno:
-  - `v_total_atendimentos` e `v_tempos_operacionais`: `.maybeSingle()` retorna um objeto ou null
-  - `v_volume_por_hora` e `v_atendimentos_semana`: `.select('*')` retorna array
-- Adicionar fallback para valores null nos tempos operacionais (como ja ocorre com dados reais: `tempo_conversa_ia_seg: null`)
-- Manter o auto-refresh de 60 segundos
-
-### Arquivo: `src/lib/supabase-config.ts`
-- Sem alteracoes necessarias -- a logica de cache do client ja esta correta
-
-## Sobre os Workflows n8n
-
-O workflow "Climo - Sara" esta **ativo e funcional**. Ele:
-- Recebe webhooks do WhatsApp
-- Processa mensagens com IA
-- Grava dados nas tabelas do Supabase externo (clientes_atendimento + tabela de atendimentos)
-- As views que o dashboard consulta sao construidas em cima dessas tabelas
-
-O workflow "Dashboard - Climo" e apenas o toggle de IA (parar/retomar) via Chatwoot, nao esta relacionado ao carregamento de dados.
-
-**Nao e necessario alterar nada nos workflows do n8n** -- o pipeline de dados esta funcionando (confirmado pelos dados retornados nas requests 200).
-
-## Resumo das Alteracoes
-
-1. Remover pre-preenchimento com credenciais do Lovable Cloud no `SettingsView`
-2. Melhorar texto de orientacao nos campos de configuracao
-3. Ajustar tratamento de dados nulos no `DashboardView`
-4. Testar o fluxo completo: configurar credenciais externas e verificar dashboard
+**Arquivo: `src/components/climo/DashboardView.tsx`**
+- Remover o card pequeno "Volume / Hora" da segunda fileira.
+- Ajustar a segunda fileira de `lg:grid-cols-4` para `lg:grid-cols-3`.
+- Adicionar uma terceira fileira com um card de largura total contendo um `BarChart` do Recharts com:
+  - Eixo X mostrando as horas de 08h a 18h
+  - Barras com o volume total por hora
+  - Tooltip e estilo visual consistente com o grafico de 7 dias
+  - Altura de aproximadamente 250px
