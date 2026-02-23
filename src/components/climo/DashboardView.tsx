@@ -166,8 +166,8 @@ export default function DashboardView() {
         </div>
       </div>
 
-      {/* SEGUNDA FILEIRA: 4 Cards de Métricas */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* SEGUNDA FILEIRA: 3 Cards de Métricas */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {/* Tempo Médio Espera Humano */}
         <div className="bg-card border border-border rounded-lg p-5 shadow-climo-sm">
           <div className="flex justify-between items-start mb-3">
@@ -178,24 +178,6 @@ export default function DashboardView() {
             {formatSeconds(metrics?.tempoEsperaHumanoSeg ?? 0)}
           </span>
           <p className="text-xs text-muted-foreground mt-2">Tempo médio até atendente</p>
-        </div>
-
-        {/* Volume por Hora */}
-        <div className="bg-card border border-border rounded-lg p-5 shadow-climo-sm">
-          <div className="flex justify-between items-start mb-3">
-            <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Volume / Hora</h3>
-            <BarChart3 className="w-4 h-4 text-chart-3" />
-          </div>
-          <div className="h-[80px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={metrics?.volumePorHora ?? []} margin={{ top: 0, right: 0, left: -30, bottom: 0 }}>
-                <XAxis dataKey="hora" axisLine={false} tickLine={false} tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 9 }} interval="preserveStartEnd" />
-                <YAxis hide />
-                <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--popover))', borderColor: 'hsl(var(--border))', borderRadius: '8px', color: 'hsl(var(--popover-foreground))', fontSize: 12 }} />
-                <Bar dataKey="total" fill="hsl(var(--chart-3))" radius={[3, 3, 0, 0]} maxBarSize={12} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
         </div>
 
         {/* Horário de Pico */}
@@ -226,6 +208,28 @@ export default function DashboardView() {
             {metrics?.variacaoSemanal === null ? '—' : `${metrics.variacaoSemanal > 0 ? '+' : ''}${metrics.variacaoSemanal}%`}
           </span>
           <p className="text-xs text-muted-foreground mt-2">vs. período anterior</p>
+        </div>
+      </div>
+
+      {/* TERCEIRA FILEIRA: Gráfico Volume por Hora */}
+      <div className="bg-card border border-border rounded-lg p-6 shadow-climo-sm">
+        <div className="flex justify-between items-start mb-4">
+          <div>
+            <h3 className="text-lg font-semibold text-foreground">Volume por Hora do Dia</h3>
+            <p className="text-xs text-muted-foreground mt-1">Distribuição de atendimentos entre 08h e 18h</p>
+          </div>
+          <BarChart3 className="w-5 h-5 text-chart-3" />
+        </div>
+        <div className="w-full h-[250px]">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={metrics?.volumePorHora ?? []} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
+              <XAxis dataKey="hora" axisLine={false} tickLine={false} tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12, fontWeight: 500 }} dy={10} />
+              <YAxis axisLine={false} tickLine={false} tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12, fontWeight: 500 }} allowDecimals={false} />
+              <Tooltip cursor={{ fill: 'hsl(var(--muted))', opacity: 0.5 }} contentStyle={{ backgroundColor: 'hsl(var(--popover))', borderColor: 'hsl(var(--border))', borderRadius: '8px', color: 'hsl(var(--popover-foreground))', fontWeight: 500 }} />
+              <Bar dataKey="total" fill="hsl(var(--chart-3))" name="Atendimentos" radius={[6, 6, 0, 0]} maxBarSize={50} />
+            </BarChart>
+          </ResponsiveContainer>
         </div>
       </div>
     </div>

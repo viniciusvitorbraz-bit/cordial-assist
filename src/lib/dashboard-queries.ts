@@ -144,13 +144,10 @@ export async function fetchDashboardMetrics(
     }
   }
 
-  // Build volume por hora (sorted)
+  // Build volume por hora (08h-18h, always complete)
   const volumePorHora: { hora: string; total: number }[] = [];
-  for (let h = 0; h < 24; h++) {
-    const count = hourCounts.get(h);
-    if (count) {
-      volumePorHora.push({ hora: `${String(h).padStart(2, '0')}h`, total: count });
-    }
+  for (let h = 8; h <= 18; h++) {
+    volumePorHora.push({ hora: `${String(h).padStart(2, '0')}h`, total: hourCounts.get(h) ?? 0 });
   }
 
   // Build weekly data (last 7 days sorted)
