@@ -14,7 +14,21 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      bot_control: {
+        Row: {
+          ai_enabled: boolean
+          id: number
+        }
+        Insert: {
+          ai_enabled?: boolean
+          id: number
+        }
+        Update: {
+          ai_enabled?: boolean
+          id?: number
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
