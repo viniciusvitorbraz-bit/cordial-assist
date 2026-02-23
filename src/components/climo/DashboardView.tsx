@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Calendar, ChevronDown, Timer, Loader2, AlertTriangle, Target } from 'lucide-react';
+import { Calendar, ChevronDown, Timer, Loader2, AlertTriangle, Target, Clock, TrendingUp, TrendingDown, Zap, BarChart3 } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from 'recharts';
@@ -163,6 +163,69 @@ export default function DashboardView() {
             </div>
           </div>
 
+        </div>
+      </div>
+
+      {/* SEGUNDA FILEIRA: 4 Cards de Métricas */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Tempo Médio Espera Humano */}
+        <div className="bg-card border border-border rounded-lg p-5 shadow-climo-sm">
+          <div className="flex justify-between items-start mb-3">
+            <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Espera Humano</h3>
+            <Clock className="w-4 h-4 text-chart-2" />
+          </div>
+          <span className="text-3xl font-bold text-foreground tracking-tight">
+            {formatSeconds(metrics?.tempoEsperaHumanoSeg ?? 0)}
+          </span>
+          <p className="text-xs text-muted-foreground mt-2">Tempo médio até atendente</p>
+        </div>
+
+        {/* Volume por Hora */}
+        <div className="bg-card border border-border rounded-lg p-5 shadow-climo-sm">
+          <div className="flex justify-between items-start mb-3">
+            <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Volume / Hora</h3>
+            <BarChart3 className="w-4 h-4 text-chart-3" />
+          </div>
+          <div className="h-[80px] w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={metrics?.volumePorHora ?? []} margin={{ top: 0, right: 0, left: -30, bottom: 0 }}>
+                <XAxis dataKey="hora" axisLine={false} tickLine={false} tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 9 }} interval="preserveStartEnd" />
+                <YAxis hide />
+                <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--popover))', borderColor: 'hsl(var(--border))', borderRadius: '8px', color: 'hsl(var(--popover-foreground))', fontSize: 12 }} />
+                <Bar dataKey="total" fill="hsl(var(--chart-3))" radius={[3, 3, 0, 0]} maxBarSize={12} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* Horário de Pico */}
+        <div className="bg-card border border-border rounded-lg p-5 shadow-climo-sm">
+          <div className="flex justify-between items-start mb-3">
+            <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Horário de Pico</h3>
+            <Zap className="w-4 h-4 text-chart-4" />
+          </div>
+          <span className="text-3xl font-bold text-foreground tracking-tight">
+            {metrics?.horarioPico ?? '—'}
+          </span>
+          <p className="text-xs text-muted-foreground mt-2">Maior volume de atendimentos</p>
+        </div>
+
+        {/* Variação Semanal */}
+        <div className="bg-card border border-border rounded-lg p-5 shadow-climo-sm">
+          <div className="flex justify-between items-start mb-3">
+            <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Variação Período</h3>
+            {(metrics?.variacaoSemanal ?? 0) >= 0
+              ? <TrendingUp className="w-4 h-4 text-climo-success" />
+              : <TrendingDown className="w-4 h-4 text-destructive" />
+            }
+          </div>
+          <span className={`text-3xl font-bold tracking-tight ${
+            metrics?.variacaoSemanal === null ? 'text-muted-foreground' :
+            (metrics?.variacaoSemanal ?? 0) >= 0 ? 'text-climo-success' : 'text-destructive'
+          }`}>
+            {metrics?.variacaoSemanal === null ? '—' : `${metrics.variacaoSemanal > 0 ? '+' : ''}${metrics.variacaoSemanal}%`}
+          </span>
+          <p className="text-xs text-muted-foreground mt-2">vs. período anterior</p>
         </div>
       </div>
     </div>

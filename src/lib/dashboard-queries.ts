@@ -49,6 +49,8 @@ export interface DashboardMetrics {
   tempoEsperaHumanoSeg: number;
   tempoTotalSeg: number;
   weeklyData: WeeklyDayData[];
+  horarioPico: string | null;
+  variacaoSemanal: number | null; // percentage change vs previous period
 }
 
 export async function fetchDashboardMetrics(
@@ -73,6 +75,8 @@ export async function fetchDashboardMetrics(
       tempoEsperaHumanoSeg: 0,
       tempoTotalSeg: 0,
       weeklyData: [],
+      horarioPico: null,
+      variacaoSemanal: null,
     };
   }
 
@@ -165,6 +169,30 @@ export async function fetchDashboardMetrics(
 
   const avg = (arr: number[]) => arr.length === 0 ? 0 : Math.round(arr.reduce((a, b) => a + b, 0) / arr.length);
 
+  // Horário de pico
+  let horarioPico: string | null = null;
+  if (volumePorHora.length > 0) {
+    const peak = volumePorHora.reduce((max, cur) => cur.total > max.total ? cur : max, volumePorHora[0]);
+    horarioPico = peak.hora;
+  }
+
+  // Variação semanal: buscar período anterior de mesmo tamanho
+  const rangeMs = new Date(range.end).getTime() - new Date(range.start).getTime();
+  const prevStart = new Date(new Date(range.start).getTime() - rangeMs).toISOString();
+  const prevEnd = range.start;
+
+  const { data: prevEvents } = await db
+    .from('conversation_events')
+    .select('id')
+    .eq('event_type', 'conversation_started')
+    .gte('created_at', prevStart)
+    .lte('created_at', prevEnd);
+
+  const prevTotal = prevEvents?.length ?? 0;
+  const variacaoSemanal = prevTotal === 0
+    ? (totalAtendimentos > 0 ? 100 : null)
+    : Math.round(((totalAtendimentos - prevTotal) / prevTotal) * 100);
+
   return {
     totalAtendimentos,
     volumePorHora,
@@ -172,5 +200,7 @@ export async function fetchDashboardMetrics(
     tempoEsperaHumanoSeg: avg(temposEspera),
     tempoTotalSeg: avg(temposTotal),
     weeklyData,
+    horarioPico,
+    variacaoSemanal,
   };
 }
