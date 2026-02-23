@@ -1,29 +1,51 @@
-import { Bell, Activity } from 'lucide-react';
+import { Bell, Search, Settings, Sun } from 'lucide-react';
 
 interface ClimoTopbarProps {
   activeTab: string;
 }
 
 const titles: Record<string, string> = {
-  dashboard: 'Dashboard Operacional',
-  crm: 'Gestão de Solicitações',
-  chat: 'Central de Atendimento',
+  dashboard: 'Dashboard',
+  crm: 'Solicitações',
+  chat: 'Conversas',
+  reports: 'Relatórios',
+  settings: 'Configurações',
 };
 
 export default function ClimoTopbar({ activeTab }: ClimoTopbarProps) {
   return (
-    <header className="h-16 bg-card border-b border-border flex items-center justify-between px-6 sticky top-0 z-10 shadow-climo-sm">
-      <div className="flex items-center gap-4">
-        <h1 className="text-lg font-bold text-foreground">{titles[activeTab] ?? ''}</h1>
-        <span className="h-4 w-px bg-border hidden md:block" />
-        <div className="hidden md:flex items-center text-xs text-muted-foreground bg-muted px-2 py-1 rounded-sm border border-border">
-          <Activity className="w-3 h-3 mr-1 text-climo-cyan" /> Sistema Operacional
-        </div>
+    <header className="h-14 bg-card/50 backdrop-blur-sm border-b border-border flex items-center justify-between px-6 sticky top-0 z-10">
+      <div className="flex items-center gap-2 text-sm">
+        <span className="text-muted-foreground font-medium">Módulo</span>
+        <span className="text-muted-foreground">/</span>
+        <span className="font-semibold text-foreground uppercase tracking-wide text-xs">
+          {titles[activeTab] ?? ''}
+        </span>
       </div>
-      <div className="flex items-center gap-4">
-        <button className="p-2 text-muted-foreground hover:bg-muted rounded-sm transition-all">
+
+      <div className="flex items-center gap-3">
+        {/* Search bar */}
+        <div className="hidden md:flex items-center gap-2 bg-muted/60 border border-border rounded-lg px-3 py-1.5 text-sm text-muted-foreground w-52">
+          <Search className="w-3.5 h-3.5" />
+          <span className="text-xs">Buscar...</span>
+          <kbd className="ml-auto text-[10px] bg-card border border-border rounded px-1.5 py-0.5 font-mono">⌘K</kbd>
+        </div>
+
+        <button className="p-2 text-muted-foreground hover:bg-muted rounded-lg transition-colors relative">
           <Bell className="w-4 h-4" />
+          <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-primary rounded-full" />
         </button>
+        <button className="p-2 text-muted-foreground hover:bg-muted rounded-lg transition-colors">
+          <Sun className="w-4 h-4" />
+        </button>
+        <button className="p-2 text-muted-foreground hover:bg-muted rounded-lg transition-colors">
+          <Settings className="w-4 h-4" />
+        </button>
+
+        {/* Avatar */}
+        <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-primary text-xs font-bold">
+          G
+        </div>
       </div>
     </header>
   );
