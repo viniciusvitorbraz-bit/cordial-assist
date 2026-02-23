@@ -18,7 +18,17 @@ export default function AiControlView() {
       if (!error && data) {
         setAiEnabled(data.ai_enabled);
       } else {
-        setAiEnabled(true);
+        // Registro não existe, criar com valor padrão
+        const { data: inserted, error: insertError } = await supabase
+          .from('bot_control')
+          .upsert({ id: 1, ai_enabled: true })
+          .select('ai_enabled')
+          .maybeSingle();
+        if (!insertError && inserted) {
+          setAiEnabled(inserted.ai_enabled);
+        } else {
+          setAiEnabled(true);
+        }
       }
     };
     fetchStatus();
@@ -28,7 +38,6 @@ export default function AiControlView() {
     if (aiEnabled === null) return;
     const newValue = !aiEnabled;
     setLoading(true);
-    setAiEnabled(newValue);
 
     const { error } = await supabase
       .from('bot_control')
@@ -36,9 +45,9 @@ export default function AiControlView() {
       .eq('id', 1);
 
     if (error) {
-      setAiEnabled(!newValue);
       toast.error('Erro ao atualizar status da IA');
     } else {
+      setAiEnabled(newValue);
       toast.success(newValue ? 'IA ativada' : 'IA pausada');
     }
     setLoading(false);
