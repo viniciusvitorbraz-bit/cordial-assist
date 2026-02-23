@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import {
-  LayoutDashboard, Users, MessageSquare, Settings, FileText,
+  LayoutDashboard, MessageSquare, Settings,
   BrainCircuit, LogOut, ChevronLeft, ChevronRight,
 } from 'lucide-react';
 
@@ -14,12 +14,7 @@ interface ClimoSidebarProps {
 
 const navItems = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { id: 'crm', label: 'Solicitações', icon: Users },
   { id: 'chat', label: 'Conversas', icon: MessageSquare },
-];
-
-const managementItems = [
-  { id: 'reports', label: 'Relatórios', icon: FileText },
   { id: 'settings', label: 'Configurações', icon: Settings },
 ];
 
@@ -70,30 +65,6 @@ export default function ClimoSidebar({
                     3
                   </span>
                 )}
-              </button>
-            );
-          })}
-        </nav>
-
-        <nav className="space-y-1">
-          {managementItems.map(({ id, label, icon: Icon }) => {
-            const active = activeTab === id;
-            return (
-              <button
-                key={id}
-                onClick={() => onTabChange(id)}
-                title={collapsed ? label : undefined}
-                className={`flex items-center gap-3 w-full px-3 py-2.5 text-sm font-medium rounded-lg transition-colors relative ${
-                  active
-                    ? 'bg-sidebar-accent text-sidebar-accent-foreground'
-                    : 'text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground'
-                }`}
-              >
-                {active && (
-                  <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 bg-sidebar-primary rounded-r-full" />
-                )}
-                <Icon className={`w-[18px] h-[18px] shrink-0 ${active ? 'text-sidebar-primary' : ''}`} />
-                {!collapsed && <span>{label}</span>}
               </button>
             );
           })}

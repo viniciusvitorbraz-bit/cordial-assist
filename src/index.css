@@ -5,7 +5,62 @@
 @tailwind utilities;
 
 @layer base {
-  :root {
+  :root,
+  .light {
+    --background: 210 20% 98%;
+    --foreground: 220 20% 14%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 220 20% 14%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 20% 14%;
+
+    --primary: 200 70% 50%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 210 15% 93%;
+    --secondary-foreground: 220 15% 30%;
+
+    --muted: 210 15% 95%;
+    --muted-foreground: 215 15% 45%;
+
+    --accent: 210 15% 93%;
+    --accent-foreground: 220 20% 14%;
+
+    --destructive: 0 65% 50%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 210 15% 88%;
+    --input: 210 15% 88%;
+    --ring: 200 70% 50%;
+
+    --radius: 0.625rem;
+
+    --chart-1: 210 70% 55%;
+    --chart-2: 200 70% 50%;
+    --chart-3: 220 55% 45%;
+    --chart-4: 215 45% 65%;
+    --chart-5: 0 65% 50%;
+
+    --sidebar-background: 210 20% 96%;
+    --sidebar-foreground: 220 20% 20%;
+    --sidebar-primary: 200 70% 50%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 210 15% 90%;
+    --sidebar-accent-foreground: 220 20% 14%;
+    --sidebar-border: 210 15% 88%;
+    --sidebar-ring: 200 70% 50%;
+
+    --climo-cyan: 200 70% 50%;
+    --climo-deep: 210 20% 96%;
+    --climo-success: 160 60% 40%;
+
+    --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.06);
+    --shadow-md: 0 4px 12px -2px rgb(0 0 0 / 0.08);
+  }
+
+  .dark {
     --background: 220 20% 10%;
     --foreground: 210 20% 92%;
 
@@ -36,14 +91,12 @@
 
     --radius: 0.625rem;
 
-    /* Chart palette – matches Clicka Hub tones */
     --chart-1: 210 70% 55%;
     --chart-2: 200 70% 50%;
     --chart-3: 220 55% 45%;
     --chart-4: 215 45% 65%;
     --chart-5: 0 65% 50%;
 
-    /* Sidebar */
     --sidebar-background: 220 25% 8%;
     --sidebar-foreground: 210 20% 80%;
     --sidebar-primary: 200 70% 50%;
@@ -53,7 +106,6 @@
     --sidebar-border: 220 15% 15%;
     --sidebar-ring: 200 70% 50%;
 
-    /* Semantic tokens */
     --climo-cyan: 200 70% 50%;
     --climo-deep: 220 25% 8%;
     --climo-success: 160 60% 45%;
