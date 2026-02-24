@@ -216,7 +216,7 @@ export default function DashboardView() {
         <div className="flex justify-between items-start mb-4">
           <div>
             <h3 className="text-lg font-semibold text-foreground">Volume por Hora do Dia</h3>
-            <p className="text-xs text-muted-foreground mt-1">Distribuição de atendimentos entre 08h e 18h</p>
+            <p className="text-xs text-muted-foreground mt-1">Distribuição de atendimentos ao longo do dia</p>
           </div>
           <BarChart3 className="w-5 h-5 text-chart-3" />
         </div>

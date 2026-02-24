@@ -148,9 +148,12 @@ export async function fetchDashboardMetrics(
     }
   }
 
-  // Build volume por hora (08h-18h, always complete)
+  // Build volume por hora — range dinâmico baseado nos dados reais
+  const allHours = Array.from(hourCounts.keys());
+  const minHour = allHours.length > 0 ? Math.min(0, ...allHours) : 8;
+  const maxHour = allHours.length > 0 ? Math.max(23, ...allHours) : 18;
   const volumePorHora: { hora: string; total: number }[] = [];
-  for (let h = 8; h <= 18; h++) {
+  for (let h = minHour; h <= maxHour; h++) {
     volumePorHora.push({ hora: `${String(h).padStart(2, '0')}h`, total: hourCounts.get(h) ?? 0 });
   }
 
