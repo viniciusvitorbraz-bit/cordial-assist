@@ -101,6 +101,9 @@ export async function fetchDashboardMetrics(
   const dailyResolvido = new Map<string, number>();
   const dailyTransbordo = new Map<string, number>();
 
+  // Helper: convert UTC timestamp to Brasília (UTC-3) Date
+  const toBrasilia = (ts: number) => new Date(ts - 3 * 60 * 60 * 1000);
+
   for (const [, evts] of byConversation) {
     const getTime = (type: string) => {
       const e = evts.find(ev => ev.event_type === type);
@@ -115,11 +118,12 @@ export async function fetchDashboardMetrics(
     // Count conversation_started
     if (conversationStarted !== null) {
       totalAtendimentos++;
-      const hour = new Date(conversationStarted).getHours();
+      const brasiliaDate = toBrasilia(conversationStarted);
+      const hour = brasiliaDate.getUTCHours();
       hourCounts.set(hour, (hourCounts.get(hour) ?? 0) + 1);
 
       // Daily grouping for weekly chart
-      const dateKey = new Date(conversationStarted).toISOString().slice(0, 10);
+      const dateKey = brasiliaDate.toISOString().slice(0, 10);
       const isTransbordo = humanStarted !== null;
       if (isTransbordo) {
         dailyTransbordo.set(dateKey, (dailyTransbordo.get(dateKey) ?? 0) + 1);
