@@ -70,7 +70,7 @@ export async function fetchDashboardMetrics(
   db: SupabaseClient,
   range: DateRange
 ): Promise<DashboardMetrics> {
-  // 1. Get all conversation_events in range
+  // ── Query 1: eventos no período selecionado (para cards e volume/hora) ──
   const { data: events, error } = await db
     .from('conversation_events')
     .select('id, conversation_id, event_type, created_at')
@@ -80,88 +80,122 @@ export async function fetchDashboardMetrics(
     .order('created_at', { ascending: true });
 
   if (error) throw new Error(error.message);
-  if (!events || events.length === 0) {
-    return {
-      totalAtendimentos: 0,
-      volumePorHora: [],
-      tempoConversaIaSeg: 0,
-      tempoEsperaHumanoSeg: 0,
-      tempoTotalSeg: 0,
-      weeklyData: [],
-      horarioPico: null,
-      variacaoSemanal: null,
-    };
-  }
 
-  // Group events by conversation_id
-  const byConversation = new Map<string, typeof events>();
-  for (const ev of events) {
-    const cid = ev.conversation_id;
-    if (!byConversation.has(cid)) byConversation.set(cid, []);
-    byConversation.get(cid)!.push(ev);
-  }
+  // ── Query 2: últimos 7 dias (sempre, independente do filtro) ──
+  const todayMidnight = getBrasiliaMidnightUTC();
+  const todayEndUTC = new Date(todayMidnight.getTime() + 24 * 60 * 60 * 1000);
+  const sevenDaysAgo = new Date(todayMidnight.getTime() - 6 * 24 * 60 * 60 * 1000); // 6 dias atrás + hoje = 7 dias
 
-  // 1️⃣ Total atendimentos = count of conversation_started
-  let totalAtendimentos = 0;
-  const hourCounts = new Map<number, number>();
+  const { data: weeklyEvents, error: weeklyError } = await db
+    .from('conversation_events')
+    .select('id, conversation_id, event_type, created_at')
+    .in('event_type', ['conversation_started', 'human_started'])
+    .gte('created_at', sevenDaysAgo.toISOString())
+    .lte('created_at', todayEndUTC.toISOString())
+    .order('created_at', { ascending: true });
 
-  // Metrics accumulators
-  const temposIA: number[] = [];
-  const temposEspera: number[] = [];
-  const temposTotal: number[] = [];
-
-  // Daily counts for weekly chart
-  const dailyResolvido = new Map<string, number>();
-  const dailyTransbordo = new Map<string, number>();
+  if (weeklyError) throw new Error(weeklyError.message);
 
   // Helper: convert UTC timestamp to Brasília (UTC-3) Date
   const toBrasilia = (ts: number) => new Date(ts - 3 * 60 * 60 * 1000);
 
-  for (const [, evts] of byConversation) {
-    const getTime = (type: string) => {
-      const e = evts.find(ev => ev.event_type === type);
-      return e ? new Date(e.created_at).getTime() : null;
-    };
+  // ── Processar dados do período selecionado ──
+  let totalAtendimentos = 0;
+  const hourCounts = new Map<number, number>();
+  const temposIA: number[] = [];
+  const temposEspera: number[] = [];
+  const temposTotal: number[] = [];
 
-    const conversationStarted = getTime('conversation_started');
-    const aiStarted = getTime('ai_started');
-    const aiFinished = getTime('ai_finished');
-    const humanStarted = getTime('human_started');
+  if (events && events.length > 0) {
+    const byConversation = new Map<string, typeof events>();
+    for (const ev of events) {
+      const cid = ev.conversation_id;
+      if (!byConversation.has(cid)) byConversation.set(cid, []);
+      byConversation.get(cid)!.push(ev);
+    }
 
-    // Count conversation_started
-    if (conversationStarted !== null) {
-      totalAtendimentos++;
-      const brasiliaDate = toBrasilia(conversationStarted);
-      const hour = brasiliaDate.getUTCHours();
-      hourCounts.set(hour, (hourCounts.get(hour) ?? 0) + 1);
+    for (const [, evts] of byConversation) {
+      const getTime = (type: string) => {
+        const e = evts.find(ev => ev.event_type === type);
+        return e ? new Date(e.created_at).getTime() : null;
+      };
 
-      // Daily grouping for weekly chart
-      const dateKey = brasiliaDate.toISOString().slice(0, 10);
-      const isTransbordo = humanStarted !== null;
-      if (isTransbordo) {
-        dailyTransbordo.set(dateKey, (dailyTransbordo.get(dateKey) ?? 0) + 1);
-      } else {
-        dailyResolvido.set(dateKey, (dailyResolvido.get(dateKey) ?? 0) + 1);
+      const conversationStarted = getTime('conversation_started');
+      const aiStarted = getTime('ai_started');
+      const aiFinished = getTime('ai_finished');
+      const humanStarted = getTime('human_started');
+
+      if (conversationStarted !== null) {
+        totalAtendimentos++;
+        const brasiliaDate = toBrasilia(conversationStarted);
+        const hour = brasiliaDate.getUTCHours();
+        hourCounts.set(hour, (hourCounts.get(hour) ?? 0) + 1);
       }
-    }
 
-    if (aiStarted !== null && aiFinished !== null) {
-      const diff = (aiFinished - aiStarted) / 1000;
-      if (diff > 0) temposIA.push(diff);
-    }
-
-    if (aiFinished !== null && humanStarted !== null) {
-      const diff = (humanStarted - aiFinished) / 1000;
-      if (diff > 0) temposEspera.push(diff);
-    }
-
-    if (aiStarted !== null && humanStarted !== null) {
-      const diff = (humanStarted - aiStarted) / 1000;
-      if (diff > 0) temposTotal.push(diff);
+      if (aiStarted !== null && aiFinished !== null) {
+        const diff = (aiFinished - aiStarted) / 1000;
+        if (diff > 0) temposIA.push(diff);
+      }
+      if (aiFinished !== null && humanStarted !== null) {
+        const diff = (humanStarted - aiFinished) / 1000;
+        if (diff > 0) temposEspera.push(diff);
+      }
+      if (aiStarted !== null && humanStarted !== null) {
+        const diff = (humanStarted - aiStarted) / 1000;
+        if (diff > 0) temposTotal.push(diff);
+      }
     }
   }
 
-  // Build volume por hora — range dinâmico baseado nos dados reais
+  // ── Processar gráfico semanal (sempre últimos 7 dias) ──
+  const weeklyByConversation = new Map<string, { started: boolean; transbordo: boolean; dateKey: string | null }>();
+
+  if (weeklyEvents && weeklyEvents.length > 0) {
+    for (const ev of weeklyEvents) {
+      const cid = ev.conversation_id;
+      if (!weeklyByConversation.has(cid)) {
+        weeklyByConversation.set(cid, { started: false, transbordo: false, dateKey: null });
+      }
+      const entry = weeklyByConversation.get(cid)!;
+      if (ev.event_type === 'conversation_started') {
+        entry.started = true;
+        const brasiliaDate = toBrasilia(new Date(ev.created_at).getTime());
+        entry.dateKey = brasiliaDate.toISOString().slice(0, 10);
+      }
+      if (ev.event_type === 'human_started') {
+        entry.transbordo = true;
+      }
+    }
+  }
+
+  const dailyResolvido = new Map<string, number>();
+  const dailyTransbordo = new Map<string, number>();
+  for (const [, entry] of weeklyByConversation) {
+    if (!entry.started || !entry.dateKey) continue;
+    if (entry.transbordo) {
+      dailyTransbordo.set(entry.dateKey, (dailyTransbordo.get(entry.dateKey) ?? 0) + 1);
+    } else {
+      dailyResolvido.set(entry.dateKey, (dailyResolvido.get(entry.dateKey) ?? 0) + 1);
+    }
+  }
+
+  // Gerar sempre 7 labels (mesmo com 0 atendimentos)
+  const weeklyData: WeeklyDayData[] = [];
+  for (let i = 6; i >= 0; i--) {
+    const dayMs = todayMidnight.getTime() - i * 24 * 60 * 60 * 1000;
+    // Converter de volta para data Brasília para obter a dateKey
+    const brasiliaDay = new Date(dayMs - 3 * 60 * 60 * 1000);
+    const dateKey = brasiliaDay.toISOString().slice(0, 10);
+    const d = new Date(dateKey + 'T12:00:00');
+    const day = d.toLocaleDateString('pt-BR', { day: 'numeric', month: 'short' });
+    weeklyData.push({
+      day,
+      resolvidoIA: dailyResolvido.get(dateKey) ?? 0,
+      transbordo: dailyTransbordo.get(dateKey) ?? 0,
+    });
+  }
+
+  // Volume por hora
   const allHours = Array.from(hourCounts.keys());
   const minHour = allHours.length > 0 ? Math.min(0, ...allHours) : 8;
   const maxHour = allHours.length > 0 ? Math.max(23, ...allHours) : 18;
@@ -169,20 +203,6 @@ export async function fetchDashboardMetrics(
   for (let h = minHour; h <= maxHour; h++) {
     volumePorHora.push({ hora: `${String(h).padStart(2, '0')}h`, total: hourCounts.get(h) ?? 0 });
   }
-
-  // Build weekly data (last 7 days sorted)
-  const allDays = new Set([...dailyResolvido.keys(), ...dailyTransbordo.keys()]);
-  const weeklyData: WeeklyDayData[] = Array.from(allDays)
-    .sort()
-    .map(dateKey => {
-      const d = new Date(dateKey + 'T12:00:00');
-      const day = d.toLocaleDateString('pt-BR', { day: 'numeric', month: 'short' });
-      return {
-        day,
-        resolvidoIA: dailyResolvido.get(dateKey) ?? 0,
-        transbordo: dailyTransbordo.get(dateKey) ?? 0,
-      };
-    });
 
   const avg = (arr: number[]) => arr.length === 0 ? 0 : Math.round(arr.reduce((a, b) => a + b, 0) / arr.length);
 
@@ -193,7 +213,7 @@ export async function fetchDashboardMetrics(
     horarioPico = peak.hora;
   }
 
-  // Variação semanal: buscar período anterior de mesmo tamanho
+  // Variação: período anterior de mesmo tamanho
   const rangeMs = new Date(range.end).getTime() - new Date(range.start).getTime();
   const prevStart = new Date(new Date(range.start).getTime() - rangeMs).toISOString();
   const prevEnd = range.start;
