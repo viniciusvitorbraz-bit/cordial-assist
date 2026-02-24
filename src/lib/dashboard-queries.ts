@@ -7,28 +7,41 @@ export interface DateRange {
   end: string;   // ISO string
 }
 
-export function getDateRange(key: DateRangeKey, customRange?: DateRange): DateRange {
+/**
+ * Retorna meia-noite de hoje em Brasília (UTC-3) como Date UTC.
+ * Ex: se agora é 2026-02-24T22:00Z (19h Brasília), retorna 2026-02-24T03:00:00.000Z
+ */
+function getBrasiliaMidnightUTC(): Date {
   const now = new Date();
-  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const todayEnd = new Date(todayStart);
-  todayEnd.setDate(todayEnd.getDate() + 1);
+  // Brasília = UTC - 3h. Converter "agora" para horário de Brasília
+  const brasiliaMs = now.getTime() - 3 * 60 * 60 * 1000;
+  const brasiliaDate = new Date(brasiliaMs);
+  // Meia-noite Brasília em UTC = data de Brasília + 3h
+  return new Date(Date.UTC(
+    brasiliaDate.getUTCFullYear(),
+    brasiliaDate.getUTCMonth(),
+    brasiliaDate.getUTCDate(),
+    3, 0, 0, 0 // 00:00 Brasília = 03:00 UTC
+  ));
+}
+
+export function getDateRange(key: DateRangeKey, customRange?: DateRange): DateRange {
+  const todayStart = getBrasiliaMidnightUTC();
+  const todayEnd = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000);
 
   switch (key) {
     case 'Hoje':
       return { start: todayStart.toISOString(), end: todayEnd.toISOString() };
     case 'Ontem': {
-      const yesterdayStart = new Date(todayStart);
-      yesterdayStart.setDate(yesterdayStart.getDate() - 1);
+      const yesterdayStart = new Date(todayStart.getTime() - 24 * 60 * 60 * 1000);
       return { start: yesterdayStart.toISOString(), end: todayStart.toISOString() };
     }
     case 'Últimos 7 dias': {
-      const weekStart = new Date(todayStart);
-      weekStart.setDate(weekStart.getDate() - 7);
+      const weekStart = new Date(todayStart.getTime() - 7 * 24 * 60 * 60 * 1000);
       return { start: weekStart.toISOString(), end: todayEnd.toISOString() };
     }
     case 'Últimos 30 dias': {
-      const monthStart = new Date(todayStart);
-      monthStart.setDate(monthStart.getDate() - 30);
+      const monthStart = new Date(todayStart.getTime() - 30 * 24 * 60 * 60 * 1000);
       return { start: monthStart.toISOString(), end: todayEnd.toISOString() };
     }
     case 'custom':
