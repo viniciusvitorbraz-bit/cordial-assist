@@ -18,17 +18,8 @@ export default function AiControlView() {
       if (!error && data) {
         setAiEnabled(data.ai_enabled);
       } else {
-        // Registro não existe, criar com valor padrão
-        const { data: inserted, error: insertError } = await supabase
-          .from('bot_control')
-          .upsert({ id: 1, ai_enabled: true })
-          .select('ai_enabled')
-          .maybeSingle();
-        if (!insertError && inserted) {
-          setAiEnabled(inserted.ai_enabled);
-        } else {
-          setAiEnabled(true);
-        }
+        toast.error('Registro de controle da IA não encontrado');
+        setAiEnabled(false);
       }
     };
     fetchStatus();
