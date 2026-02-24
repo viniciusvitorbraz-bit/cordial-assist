@@ -14,6 +14,36 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_events: {
+        Row: {
+          conversation_id: string
+          created_at: string
+          event_type: string
+          id: string
+          metadata: Json | null
+          phone: string | null
+          timestamp: string
+        }
+        Insert: {
+          conversation_id: string
+          created_at?: string
+          event_type: string
+          id?: string
+          metadata?: Json | null
+          phone?: string | null
+          timestamp: string
+        }
+        Update: {
+          conversation_id?: string
+          created_at?: string
+          event_type?: string
+          id?: string
+          metadata?: Json | null
+          phone?: string | null
+          timestamp?: string
+        }
+        Relationships: []
+      }
       bot_control: {
         Row: {
           ai_enabled: boolean
