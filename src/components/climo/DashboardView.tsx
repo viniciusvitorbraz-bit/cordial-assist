@@ -128,7 +128,7 @@ export default function DashboardView() {
               <BarChart data={metrics?.weeklyData ?? []} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
                 <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12, fontWeight: 500 }} dy={10} />
-                <YAxis axisLine={false} tickLine={false} tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12, fontWeight: 500 }} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12, fontWeight: 500 }} allowDecimals={false} />
                 <Tooltip cursor={{ fill: 'hsl(var(--muted))', opacity: 0.5 }} contentStyle={{ backgroundColor: 'hsl(var(--popover))', borderColor: 'hsl(var(--border))', borderRadius: '8px', color: 'hsl(var(--popover-foreground))', fontWeight: 500 }} />
                 <Bar dataKey="resolvidoIA" stackId="a" fill="hsl(var(--chart-1))" name="Resolvido IA" maxBarSize={50} />
                 <Bar dataKey="transbordo" stackId="a" fill="hsl(var(--chart-2))" name="Transbordo" radius={[6, 6, 0, 0]} maxBarSize={50} />
