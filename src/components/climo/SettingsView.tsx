@@ -1,21 +1,30 @@
 import { useState, useEffect } from 'react';
-import { Settings, Save, CheckCircle2, Globe } from 'lucide-react';
+import { Settings, Save, CheckCircle2, Database } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { getApiUrl, saveApiUrl } from '@/lib/supabase-config';
+import { getSupabaseConfig, saveSupabaseConfig } from '@/lib/supabase-config';
 
 export default function SettingsView() {
-  const [apiUrl, setApiUrl] = useState('');
+  const [url, setUrl] = useState('');
+  const [anonKey, setAnonKey] = useState('');
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
-    const url = getApiUrl();
-    if (url) setApiUrl(url);
+    const config = getSupabaseConfig();
+    if (config) {
+      setUrl(config.url);
+      setAnonKey(config.anonKey);
+    } else {
+      const envUrl = import.meta.env.VITE_SUPABASE_URL;
+      const envKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+      if (envUrl) setUrl(envUrl);
+      if (envKey) setAnonKey(envKey);
+    }
   }, []);
 
   const handleSave = () => {
-    if (!apiUrl.trim()) return;
-    saveApiUrl(apiUrl.trim());
+    if (!url.trim() || !anonKey.trim()) return;
+    saveSupabaseConfig({ url: url.trim(), anonKey: anonKey.trim() });
     setSaved(true);
     setTimeout(() => setSaved(false), 3000);
   };
@@ -32,31 +41,41 @@ export default function SettingsView() {
       <div className="bg-card border border-border rounded-lg p-6 shadow-sm space-y-6">
         <div className="flex items-center gap-3 pb-4 border-b border-border">
           <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-            <Globe className="w-5 h-5 text-primary" />
+            <Database className="w-5 h-5 text-primary" />
           </div>
           <div>
-            <h3 className="font-semibold text-card-foreground">API de Métricas</h3>
-            <p className="text-xs text-muted-foreground">Insira a URL base da API externa que fornece as métricas do dashboard.</p>
+            <h3 className="font-semibold text-card-foreground">Conexão com Banco de Dados</h3>
+            <p className="text-xs text-muted-foreground">Insira a URL e Anon Key do seu projeto Supabase externo onde as métricas estão armazenadas.</p>
           </div>
         </div>
 
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="api-url">URL da API</Label>
+            <Label htmlFor="supabase-url">URL do Projeto</Label>
             <Input
-              id="api-url"
-              placeholder="https://sua-api.com"
-              value={apiUrl}
-              onChange={(e) => setApiUrl(e.target.value)}
+              id="supabase-url"
+              placeholder="https://xxxxx.supabase.co"
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
             />
-            <p className="text-xs text-muted-foreground">O dashboard fará requisições para <code className="text-xs bg-muted px-1 py-0.5 rounded">{apiUrl || '...'}/api/ai-dashboard</code></p>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="supabase-key">Anon Key</Label>
+            <Input
+              id="supabase-key"
+              type="password"
+              placeholder="eyJhbGciOiJIUzI1NiIs..."
+              value={anonKey}
+              onChange={(e) => setAnonKey(e.target.value)}
+            />
           </div>
         </div>
 
         <div className="flex items-center gap-3 pt-2">
           <button
             onClick={handleSave}
-            disabled={!apiUrl.trim()}
+            disabled={!url.trim() || !anonKey.trim()}
             className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Save className="w-4 h-4" />

@@ -1,7 +1,6 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
 const STORAGE_KEY = 'climo_supabase_config';
-const API_URL_KEY = 'climo_api_url';
 
 export interface SupabaseConfig {
   url: string;
@@ -25,6 +24,7 @@ export function getSupabaseConfig(): SupabaseConfig | null {
 
 export function saveSupabaseConfig(config: SupabaseConfig): void {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
+  // Invalidate cached client when config changes
   cachedClient = null;
   cachedConfigHash = null;
 }
@@ -41,14 +41,4 @@ export function createDynamicSupabaseClient(): SupabaseClient | null {
   cachedClient = createClient(config.url, config.anonKey);
   cachedConfigHash = hash;
   return cachedClient;
-}
-
-// ── API URL config for dashboard ──
-
-export function getApiUrl(): string | null {
-  return localStorage.getItem(API_URL_KEY) || null;
-}
-
-export function saveApiUrl(url: string): void {
-  localStorage.setItem(API_URL_KEY, url.replace(/\/+$/, ''));
 }
