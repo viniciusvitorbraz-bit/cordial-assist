@@ -1,12 +1,27 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Bot, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
 
+const BOT_CONTROL_ID = 1;
+
 export default function AiControlView() {
   const [aiEnabled, setAiEnabled] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchStatus = async () => {
+      const { data } = await supabase
+        .from('bot_control')
+        .select('ai_enabled')
+        .eq('id', BOT_CONTROL_ID)
+        .maybeSingle();
+      if (data) setAiEnabled(data.ai_enabled);
+      setLoading(false);
+    };
+    fetchStatus();
+  }, []);
 
   const toggle = async () => {
     const newValue = !aiEnabled;
@@ -19,7 +34,11 @@ export default function AiControlView() {
           controle_ia: newValue,
         },
       });
-      // Consideramos sucesso independente da resposta do webhook destino
+
+      await supabase
+        .from('bot_control')
+        .upsert({ id: BOT_CONTROL_ID, ai_enabled: newValue });
+
       setAiEnabled(newValue);
       toast.success(newValue ? 'IA ativada' : 'IA pausada');
     } catch (err) {
