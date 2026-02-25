@@ -10,15 +10,20 @@ export interface SupabaseConfig {
 let cachedClient: SupabaseClient | null = null;
 let cachedConfigHash: string | null = null;
 
-export function getSupabaseConfig(): SupabaseConfig | null {
+const DEFAULT_CONFIG: SupabaseConfig = {
+  url: 'https://kolfmrmwekxtibwhlbaz.supabase.co',
+  anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtvbGZtcm13ZWt4dGlid2hsYmF6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQwMDU5ODAsImV4cCI6MjA3OTU4MTk4MH0.nzOhd5qKz7I1gYwnA3ijCH6_5zrebfdSZ_RnvSWMFxs',
+};
+
+export function getSupabaseConfig(): SupabaseConfig {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return null;
+    if (!raw) return DEFAULT_CONFIG;
     const parsed = JSON.parse(raw);
     if (parsed.url && parsed.anonKey) return parsed;
-    return null;
+    return DEFAULT_CONFIG;
   } catch {
-    return null;
+    return DEFAULT_CONFIG;
   }
 }
 
