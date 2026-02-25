@@ -131,7 +131,7 @@ export default function DashboardView() {
                 <YAxis axisLine={false} tickLine={false} tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12, fontWeight: 500 }} allowDecimals={false} />
                 <Tooltip cursor={{ fill: 'hsl(var(--muted))', opacity: 0.5 }} contentStyle={{ backgroundColor: 'hsl(var(--popover))', borderColor: 'hsl(var(--border))', borderRadius: '8px', color: 'hsl(var(--popover-foreground))', fontWeight: 500 }} />
                 <Bar dataKey="resolvidoIA" stackId="a" fill="hsl(var(--chart-1))" name="Resolvido IA" maxBarSize={50} />
-                <Bar dataKey="transbordo" stackId="a" fill="hsl(var(--chart-2))" name="Transbordo" radius={[6, 6, 0, 0]} maxBarSize={50} />
+                <Bar dataKey="transbordo" stackId="a" fill="hsl(var(--chart-2))" name="Transbordo" radius={[6, 6, 0, 0]} maxBarSize={50} legendType="none" />
               </BarChart>
             </ResponsiveContainer>
           </div>
