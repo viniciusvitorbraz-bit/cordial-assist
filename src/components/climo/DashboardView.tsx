@@ -129,9 +129,18 @@ export default function DashboardView() {
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
                 <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12, fontWeight: 500 }} dy={10} />
                 <YAxis axisLine={false} tickLine={false} tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12, fontWeight: 500 }} allowDecimals={false} />
-                <Tooltip cursor={{ fill: 'hsl(var(--muted))', opacity: 0.5 }} contentStyle={{ backgroundColor: 'hsl(var(--popover))', borderColor: 'hsl(var(--border))', borderRadius: '8px', color: 'hsl(var(--popover-foreground))', fontWeight: 500 }} />
-                <Bar dataKey="resolvidoIA" stackId="a" fill="hsl(var(--chart-1))" name="Resolvido IA" maxBarSize={50} />
-                <Bar dataKey="transbordo" stackId="a" fill="hsl(var(--chart-2))" name="Transbordo" radius={[6, 6, 0, 0]} maxBarSize={50} legendType="none" />
+                <Tooltip cursor={{ fill: 'hsl(var(--muted))', opacity: 0.5 }} contentStyle={{ backgroundColor: 'hsl(var(--popover))', borderColor: 'hsl(var(--border))', borderRadius: '8px', color: 'hsl(var(--popover-foreground))', fontWeight: 500 }} content={({ active, payload, label }) => {
+                  if (!active || !payload?.length) return null;
+                  const total = payload.reduce((sum: number, p: any) => sum + (p.value ?? 0), 0);
+                  return (
+                    <div style={{ backgroundColor: 'hsl(var(--popover))', border: '1px solid hsl(var(--border))', borderRadius: '8px', padding: '8px 12px', color: 'hsl(var(--popover-foreground))', fontWeight: 500, fontSize: '13px' }}>
+                      <p>{label}</p>
+                      <p style={{ fontWeight: 700 }}>Atendimentos: {total}</p>
+                    </div>
+                  );
+                }} />
+                <Bar dataKey="resolvidoIA" stackId="a" fill="hsl(var(--chart-1))" maxBarSize={50} />
+                <Bar dataKey="transbordo" stackId="a" fill="hsl(var(--chart-2))" radius={[6, 6, 0, 0]} maxBarSize={50} />
               </BarChart>
             </ResponsiveContainer>
           </div>
