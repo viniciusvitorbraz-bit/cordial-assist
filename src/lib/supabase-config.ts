@@ -18,13 +18,14 @@ const DEFAULT_CONFIG: SupabaseConfig = {
 export function getSupabaseConfig(): SupabaseConfig {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return DEFAULT_CONFIG;
-    const parsed = JSON.parse(raw);
-    if (parsed.url && parsed.anonKey) return parsed;
-    return DEFAULT_CONFIG;
-  } catch {
-    return DEFAULT_CONFIG;
-  }
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed.url && parsed.anonKey) return parsed;
+    }
+  } catch {}
+  // Auto-save defaults to localStorage so all tabs use the same config
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(DEFAULT_CONFIG));
+  return DEFAULT_CONFIG;
 }
 
 export function saveSupabaseConfig(config: SupabaseConfig): void {
