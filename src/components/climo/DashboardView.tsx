@@ -140,7 +140,7 @@ export default function DashboardView() {
                   );
                 }} />
                 <Bar dataKey="resolvidoIA" stackId="a" fill="hsl(var(--chart-1))" maxBarSize={50} />
-                <Bar dataKey="transbordo" stackId="a" fill="hsl(var(--chart-2))" radius={[6, 6, 0, 0]} maxBarSize={50} />
+                <Bar dataKey="transbordo" stackId="a" fill="hsl(var(--chart-1))" radius={[6, 6, 0, 0]} maxBarSize={50} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -233,8 +233,8 @@ export default function DashboardView() {
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={metrics?.volumePorHora ?? []} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
-              <XAxis dataKey="hora" axisLine={false} tickLine={false} tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12, fontWeight: 500 }} dy={10} />
-              <YAxis axisLine={false} tickLine={false} tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12, fontWeight: 500 }} allowDecimals={false} />
+               <XAxis dataKey="hora" axisLine={false} tickLine={false} tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11, fontWeight: 500 }} dy={10} interval={1} angle={-45} textAnchor="end" height={50} />
+               <YAxis axisLine={false} tickLine={false} tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12, fontWeight: 500 }} allowDecimals={false} width={30} />
               <Tooltip cursor={{ fill: 'hsl(var(--muted))', opacity: 0.5 }} contentStyle={{ backgroundColor: 'hsl(var(--popover))', borderColor: 'hsl(var(--border))', borderRadius: '8px', color: 'hsl(var(--popover-foreground))', fontWeight: 500 }} />
               <Bar dataKey="total" fill="hsl(var(--chart-3))" name="Atendimentos" radius={[6, 6, 0, 0]} maxBarSize={50} />
             </BarChart>
