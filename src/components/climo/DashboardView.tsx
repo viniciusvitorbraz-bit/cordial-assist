@@ -86,7 +86,7 @@ export default function DashboardView() {
       <div className="flex justify-between items-end mb-2">
         <div>
           <h2 className="text-2xl font-bold text-foreground tracking-tight">Visão Geral</h2>
-          <p className="text-sm text-muted-foreground mt-1">Acompanhe o volume e a velocidade de atendimento.</p>
+          <p className="text-sm text-muted-foreground mt-1">Acompanhe o volume e a velocidade de atendimento. <span className="opacity-60">(Horário de Brasília)</span></p>
         </div>
         <div className="flex gap-2 relative">
           <button
@@ -189,7 +189,7 @@ export default function DashboardView() {
           <span className="text-3xl font-bold text-foreground tracking-tight">
             {metrics?.horarioPico ?? '—'}
           </span>
-          <p className="text-xs text-muted-foreground mt-2">Maior volume de atendimentos</p>
+          <p className="text-xs text-muted-foreground mt-2">Maior volume (Brasília)</p>
         </div>
 
         {/* Variação Semanal */}
@@ -216,7 +216,7 @@ export default function DashboardView() {
         <div className="flex justify-between items-start mb-4">
           <div>
             <h3 className="text-lg font-semibold text-foreground">Volume por Hora do Dia</h3>
-            <p className="text-xs text-muted-foreground mt-1">Distribuição de atendimentos ao longo do dia</p>
+            <p className="text-xs text-muted-foreground mt-1">Distribuição ao longo do dia (Brasília)</p>
           </div>
           <BarChart3 className="w-5 h-5 text-chart-3" />
         </div>
