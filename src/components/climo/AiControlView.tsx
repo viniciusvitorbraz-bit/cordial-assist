@@ -40,6 +40,17 @@ export default function AiControlView() {
     } else {
       setAiEnabled(newValue);
       toast.success(newValue ? 'IA ativada' : 'IA pausada');
+
+      // Envia POST para o webhook
+      try {
+        await fetch('https://autopilot-n8n.rdhe1h.easypanel.host/webhook/uazapi', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ controle_ia: newValue }),
+        });
+      } catch (webhookErr) {
+        console.error('Erro ao notificar webhook:', webhookErr);
+      }
     }
     setLoading(false);
   };
