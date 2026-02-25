@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Bot, Loader2 } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
 
@@ -12,11 +13,13 @@ export default function AiControlView() {
     setLoading(true);
 
     try {
-      await fetch('https://autopilot-n8n.rdhe1h.easypanel.host/webhook/uazapi', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ controle_ia: newValue }),
+      await supabase.functions.invoke('n8n-proxy', {
+        body: {
+          webhook_url: 'https://autopilot-n8n.rdhe1h.easypanel.host/webhook/uazapi',
+          controle_ia: newValue,
+        },
       });
+      // Consideramos sucesso independente da resposta do webhook destino
       setAiEnabled(newValue);
       toast.success(newValue ? 'IA ativada' : 'IA pausada');
     } catch (err) {
