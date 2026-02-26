@@ -1,10 +1,9 @@
 import { useState, useEffect } from 'react';
 import { Bot, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { createDynamicSupabaseClient } from '@/lib/supabase-config';
 import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
-
-const BOT_CONTROL_ID = 1;
 
 export default function AiControlView() {
   const [aiEnabled, setAiEnabled] = useState(false);
@@ -12,10 +11,12 @@ export default function AiControlView() {
 
   useEffect(() => {
     const fetchStatus = async () => {
-      const { data } = await supabase
-        .from('bot_control')
+      const client = createDynamicSupabaseClient();
+      if (!client) { setLoading(false); return; }
+      const { data } = await client
+        .from('app_config')
         .select('ai_enabled')
-        .eq('id', BOT_CONTROL_ID)
+        .eq('id', 1)
         .maybeSingle();
       if (data) setAiEnabled(data.ai_enabled);
       setLoading(false);
@@ -35,9 +36,13 @@ export default function AiControlView() {
         },
       });
 
-      await supabase
-        .from('bot_control')
-        .upsert({ id: BOT_CONTROL_ID, ai_enabled: newValue });
+      const client = createDynamicSupabaseClient();
+      if (client) {
+        await client
+          .from('app_config')
+          .update({ ai_enabled: newValue })
+          .eq('id', 1);
+      }
 
       setAiEnabled(newValue);
       toast.success(newValue ? 'IA ativada' : 'IA pausada');
