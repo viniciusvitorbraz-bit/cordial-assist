@@ -9,7 +9,21 @@ interface Cliente {
   nome: string;
   status: string | null;
   created_at: string;
+  dynamicStatus?: 'ai_started' | 'ai_finished' | 'human_started' | null;
 }
+
+interface ConversationEvent {
+  phone: string | null;
+  conversation_id: string;
+  event_type: string;
+  created_at: string;
+}
+
+const STATUS_MAP: Record<string, { label: string; bg: string; text: string }> = {
+  ai_started:    { label: 'Atendimento IA',     bg: 'bg-blue-500/10',   text: 'text-blue-500' },
+  ai_finished:   { label: 'Aguardando Humano',  bg: 'bg-yellow-500/10', text: 'text-yellow-600' },
+  human_started: { label: 'Finalizado',         bg: 'bg-green-500/10',  text: 'text-green-600' },
+};
 
 function formatPhone(phone: string): string {
   const digits = phone.replace(/\D/g, '');
@@ -47,7 +61,31 @@ export default function ClientesView() {
         .order('created_at', { ascending: false });
 
       if (dbError) throw dbError;
-      setClientes(data ?? []);
+
+      // Fetch conversation events to determine dynamic status
+      const { data: events } = await db
+        .from('conversation_events')
+        .select('phone, conversation_id, event_type, created_at')
+        .in('event_type', ['ai_started', 'ai_finished', 'human_started'])
+        .order('created_at', { ascending: false });
+
+      // Build a map: phone → latest relevant event_type
+      const phoneStatusMap = new Map<string, string>();
+      if (events) {
+        for (const ev of events as ConversationEvent[]) {
+          const phone = ev.phone?.replace(/\D/g, '');
+          if (phone && !phoneStatusMap.has(phone)) {
+            phoneStatusMap.set(phone, ev.event_type);
+          }
+        }
+      }
+
+      const enriched = (data ?? []).map((c: any) => {
+        const digits = c.telefone?.replace(/\D/g, '') ?? '';
+        return { ...c, dynamicStatus: phoneStatusMap.get(digits) ?? null };
+      });
+
+      setClientes(enriched);
     } catch (e: any) {
       setError(e.message ?? 'Erro ao buscar clientes.');
     } finally {
@@ -131,9 +169,9 @@ export default function ClientesView() {
                     <td className="px-4 py-3 font-medium text-foreground">{c.nome || '—'}</td>
                     <td className="px-4 py-3 text-muted-foreground font-mono text-xs">{formatPhone(c.telefone)}</td>
                     <td className="px-4 py-3">
-                      {c.status ? (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-primary/10 text-primary">
-                          {c.status}
+                      {c.dynamicStatus && STATUS_MAP[c.dynamicStatus] ? (
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium ${STATUS_MAP[c.dynamicStatus].bg} ${STATUS_MAP[c.dynamicStatus].text}`}>
+                          {STATUS_MAP[c.dynamicStatus].label}
                         </span>
                       ) : (
                         <span className="text-muted-foreground text-xs">—</span>
