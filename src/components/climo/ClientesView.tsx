@@ -62,27 +62,46 @@ export default function ClientesView() {
 
       if (dbError) throw dbError;
 
-      // Fetch conversation events to determine dynamic status
-      const { data: events } = await db
-        .from('conversation_events')
-        .select('phone, conversation_id, event_type, created_at')
-        .in('event_type', ['ai_started', 'ai_finished', 'human_started'])
-        .order('created_at', { ascending: false });
+      // Step 1: Get phone → conversation_id mapping from ai_events
+      const { data: aiEvents } = await db
+        .from('ai_events')
+        .select('phone, conversation_id')
+        .not('phone', 'is', null);
 
-      // Build a map: phone → latest relevant event_type
-      const phoneStatusMap = new Map<string, string>();
-      if (events) {
-        for (const ev of events as ConversationEvent[]) {
-          const phone = ev.phone?.replace(/\D/g, '');
-          if (phone && !phoneStatusMap.has(phone)) {
-            phoneStatusMap.set(phone, ev.event_type);
+      // Build phone → conversation_id map
+      const phoneToConvMap = new Map<string, string>();
+      if (aiEvents) {
+        for (const ev of aiEvents) {
+          const phone = (ev.phone as string)?.replace(/\D/g, '');
+          if (phone && ev.conversation_id) {
+            phoneToConvMap.set(phone, ev.conversation_id);
           }
         }
       }
 
+      // Step 2: Get latest status events from conversation_events
+      const { data: convEvents } = await db
+        .from('conversation_events')
+        .select('conversation_id, event_type, created_at')
+        .in('event_type', ['ai_started', 'ai_finished', 'human_started'])
+        .order('created_at', { ascending: false });
+
+      // Build conversation_id → latest event_type map
+      const convStatusMap = new Map<string, string>();
+      if (convEvents) {
+        for (const ev of convEvents as any[]) {
+          if (!convStatusMap.has(ev.conversation_id)) {
+            convStatusMap.set(ev.conversation_id, ev.event_type);
+          }
+        }
+      }
+
+      // Step 3: Enrich clients with dynamic status
       const enriched = (data ?? []).map((c: any) => {
         const digits = c.telefone?.replace(/\D/g, '') ?? '';
-        return { ...c, dynamicStatus: phoneStatusMap.get(digits) ?? null };
+        const convId = phoneToConvMap.get(digits);
+        const status = convId ? convStatusMap.get(convId) ?? null : null;
+        return { ...c, dynamicStatus: status };
       });
 
       setClientes(enriched);
