@@ -15,10 +15,10 @@ export default function AiControlView() {
       if (!client) { setLoading(false); return; }
       const { data } = await client
         .from('app_config')
-        .select('ai_enabled')
+        .select('ia_ativa')
         .eq('id', 1)
         .maybeSingle();
-      if (data) setAiEnabled(data.ai_enabled);
+      if (data) setAiEnabled(data.ia_ativa);
       setLoading(false);
     };
     fetchStatus();
@@ -40,7 +40,7 @@ export default function AiControlView() {
       if (client) {
         await client
           .from('app_config')
-          .update({ ai_enabled: newValue })
+          .update({ ia_ativa: newValue })
           .eq('id', 1);
       }
 
