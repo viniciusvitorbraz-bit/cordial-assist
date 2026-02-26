@@ -136,14 +136,9 @@ export async function fetchDashboardMetrics(
         const diff = (aiFinished - aiStarted) / 1000;
         if (diff > 0) temposIA.push(diff);
       }
-      if (humanStarted !== null) {
-        // Se a IA finalizou, tempo de espera = human_started - ai_finished
-        // Senão, usa conversation_started como base (humano entrou direto)
-        const baseTime = aiFinished ?? conversationStarted;
-        if (baseTime !== null) {
-          const diff = (humanStarted - baseTime) / 1000;
-          if (diff >= 0) temposEspera.push(diff);
-        }
+      if (aiFinished !== null && humanStarted !== null) {
+        const diff = (humanStarted - aiFinished) / 1000;
+        if (diff > 0) temposEspera.push(diff);
       }
       if (aiStarted !== null && humanStarted !== null) {
         const diff = (humanStarted - aiStarted) / 1000;
