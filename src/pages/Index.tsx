@@ -6,6 +6,7 @@ import DashboardView from '@/components/climo/DashboardView';
 import ChatView from '@/components/climo/ChatView';
 import AiControlView from '@/components/climo/AiControlView';
 import SettingsView from '@/components/climo/SettingsView';
+import ClientesView from '@/components/climo/ClientesView';
 
 export default function Index() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -34,6 +35,7 @@ export default function Index() {
         <div className="p-6 flex-1 overflow-y-auto">
           {activeTab === 'ai-control' && <AiControlView />}
           {activeTab === 'dashboard' && <DashboardView />}
+          {activeTab === 'clientes' && <ClientesView />}
           {activeTab === 'chat' && <ChatView />}
           {activeTab === 'settings' && <SettingsView />}
         </div>

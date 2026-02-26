@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import {
   LayoutDashboard, MessageSquare, Settings,
-  BrainCircuit, LogOut, ChevronLeft, ChevronRight,
+  BrainCircuit, LogOut, ChevronLeft, ChevronRight, Users,
 } from 'lucide-react';
 
 interface ClimoSidebarProps {
@@ -15,6 +15,7 @@ interface ClimoSidebarProps {
 const navItems = [
   { id: 'ai-control', label: 'Controle da IA', icon: BrainCircuit },
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { id: 'clientes', label: 'Clientes', icon: Users },
   { id: 'chat', label: 'Conversas', icon: MessageSquare },
   { id: 'settings', label: 'Configurações', icon: Settings },
 ];
