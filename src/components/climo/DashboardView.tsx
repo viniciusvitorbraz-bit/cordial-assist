@@ -176,7 +176,7 @@ export default function DashboardView() {
       </div>
 
       {/* SEGUNDA FILEIRA: 3 Cards de Métricas */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {/* Tempo Médio Espera Humano */}
         <div className="bg-card border border-border rounded-lg p-5 shadow-climo-sm">
           <div className="flex justify-between items-start mb-3">
@@ -199,24 +199,6 @@ export default function DashboardView() {
             {metrics?.horarioPico ?? '—'}
           </span>
           <p className="text-xs text-muted-foreground mt-2">Maior volume (Brasília)</p>
-        </div>
-
-        {/* Variação Semanal */}
-        <div className="bg-card border border-border rounded-lg p-5 shadow-climo-sm">
-          <div className="flex justify-between items-start mb-3">
-            <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Variação Período</h3>
-            {(metrics?.variacaoSemanal ?? 0) >= 0
-              ? <TrendingUp className="w-4 h-4 text-climo-success" />
-              : <TrendingDown className="w-4 h-4 text-destructive" />
-            }
-          </div>
-          <span className={`text-3xl font-bold tracking-tight ${
-            metrics?.variacaoSemanal === null ? 'text-muted-foreground' :
-            (metrics?.variacaoSemanal ?? 0) >= 0 ? 'text-climo-success' : 'text-destructive'
-          }`}>
-            {metrics?.variacaoSemanal === null ? '—' : `${metrics.variacaoSemanal > 0 ? '+' : ''}${metrics.variacaoSemanal}%`}
-          </span>
-          <p className="text-xs text-muted-foreground mt-2">vs. período anterior</p>
         </div>
       </div>
 
