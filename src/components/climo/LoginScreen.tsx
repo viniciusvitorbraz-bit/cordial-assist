@@ -1,6 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { BrainCircuit, Mail, Lock, AlertTriangle } from 'lucide-react';
-import { ShaderGradientCanvas, ShaderGradient } from 'shadergradient';
 
 interface LoginScreenProps {
   onLogin: () => void;
@@ -10,6 +9,8 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const mouseRef = useRef({ x: -1000, y: -1000 });
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -20,43 +21,110 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
     }
   };
 
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    let animationFrameId: number;
+    let particles: { x: number; y: number; radius: number; vx: number; vy: number }[] = [];
+
+    const resizeCanvas = () => {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+      initParticles();
+    };
+
+    const initParticles = () => {
+      particles = [];
+      const numParticles = Math.floor((canvas.width * canvas.height) / 15000);
+      for (let i = 0; i < numParticles; i++) {
+        particles.push({
+          x: Math.random() * canvas.width,
+          y: Math.random() * canvas.height,
+          radius: Math.random() * 1.5 + 0.5,
+          vx: (Math.random() - 0.5) * 0.08,
+          vy: (Math.random() - 0.5) * 0.08,
+        });
+      }
+    };
+
+    const drawParticles = () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      const brandColor = '92, 166, 230';
+
+      particles.forEach((particle, i) => {
+        particle.x += particle.vx;
+        particle.y += particle.vy;
+        if (particle.x < 0 || particle.x > canvas.width) particle.vx *= -1;
+        if (particle.y < 0 || particle.y > canvas.height) particle.vy *= -1;
+
+        ctx.beginPath();
+        ctx.arc(particle.x, particle.y, particle.radius, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(${brandColor}, 0.2)`;
+        ctx.fill();
+
+        for (let j = i + 1; j < particles.length; j++) {
+          const particle2 = particles[j];
+          const dx = particle.x - particle2.x;
+          const dy = particle.y - particle2.y;
+          const distance = Math.sqrt(dx * dx + dy * dy);
+          if (distance < 130) {
+            ctx.beginPath();
+            const alpha = 0.1 * (1 - distance / 130);
+            ctx.strokeStyle = `rgba(${brandColor}, ${alpha})`;
+            ctx.lineWidth = 0.5;
+            ctx.moveTo(particle.x, particle.y);
+            ctx.lineTo(particle2.x, particle2.y);
+            ctx.stroke();
+          }
+        }
+
+        const mouseX = mouseRef.current.x;
+        const mouseY = mouseRef.current.y;
+        if (mouseX !== -1000 && mouseY !== -1000) {
+          const dxMouse = particle.x - mouseX;
+          const dyMouse = particle.y - mouseY;
+          const distanceMouse = Math.sqrt(dxMouse * dxMouse + dyMouse * dyMouse);
+          if (distanceMouse < 250) {
+            ctx.beginPath();
+            const alpha = 0.15 * (1 - distanceMouse / 250);
+            ctx.strokeStyle = `rgba(${brandColor}, ${alpha})`;
+            ctx.lineWidth = 0.6;
+            ctx.moveTo(particle.x, particle.y);
+            ctx.lineTo(mouseX, mouseY);
+            ctx.stroke();
+            const force = (250 - distanceMouse) / 250;
+            particle.x += (dxMouse / distanceMouse) * force * 0.05;
+            particle.y += (dyMouse / distanceMouse) * force * 0.05;
+          }
+        }
+      });
+
+      animationFrameId = requestAnimationFrame(drawParticles);
+    };
+
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+    drawParticles();
+
+    return () => {
+      window.removeEventListener('resize', resizeCanvas);
+      cancelAnimationFrame(animationFrameId);
+    };
+  }, []);
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    mouseRef.current = { x: e.clientX, y: e.clientY };
+  };
+
   return (
     <div
       className="relative min-h-screen flex items-center justify-center overflow-hidden"
       style={{ backgroundColor: '#0b0d11' }}
+      onMouseMove={handleMouseMove}
     >
-      <div className="absolute inset-0 z-0">
-        <ShaderGradientCanvas>
-          <ShaderGradient
-            animate="on"
-            brightness={0.2}
-            cAzimuthAngle={180}
-            cDistance={3.6}
-            cPolarAngle={90}
-            cameraZoom={1}
-            color1="#124a86"
-            color2="#042864"
-            color3="#004f9e"
-            envPreset="city"
-            lightType="env"
-            positionX={-1.4}
-            positionY={0}
-            positionZ={0}
-            reflection={0.6}
-            rotationX={0}
-            rotationY={10}
-            rotationZ={50}
-            type="waterPlane"
-            uAmplitude={1}
-            uDensity={1.3}
-            uFrequency={5.5}
-            uSpeed={0.3}
-            uStrength={4}
-            uTime={0}
-            wireframe={false}
-          />
-        </ShaderGradientCanvas>
-      </div>
+      <canvas ref={canvasRef} className="absolute inset-0 z-0" />
 
       <div className="relative z-10 w-full max-w-md px-4">
         {/* Header */}
