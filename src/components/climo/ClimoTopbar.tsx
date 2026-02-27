@@ -53,13 +53,6 @@ export default function ClimoTopbar({ activeTab }: ClimoTopbarProps) {
         >
           <RefreshCw className="w-4 h-4" />
         </button>
-        <button
-          onClick={() => setDark(!dark)}
-          className="p-2 text-muted-foreground hover:text-foreground rounded-xl bg-card border border-border transition-colors"
-          title={dark ? 'Modo claro' : 'Modo escuro'}
-        >
-          {dark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-        </button>
 
         {/* Avatar */}
         <img src={climoAvatar} alt="Climo avatar" className="w-8 h-8 rounded-full object-cover ml-1" />
