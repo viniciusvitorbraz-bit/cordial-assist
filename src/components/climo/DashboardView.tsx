@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Calendar, ChevronDown, Timer, Loader2, AlertTriangle, Target, Clock, TrendingUp, TrendingDown, Zap, BarChart3 } from 'lucide-react';
+import { Calendar, ChevronDown, Timer, Loader2, AlertTriangle, Target, Clock, Zap, BarChart3 } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from 'recharts';
@@ -15,7 +15,6 @@ function formatSeconds(seg: number): string {
 
 const DATE_OPTIONS: DateRangeKey[] = ['Hoje', 'Ontem', 'Últimos 7 dias', 'Últimos 30 dias'];
 
-
 export default function DashboardView() {
   const [dateRange, setDateRange] = useState<DateRangeKey>('Hoje');
   const [isDateDropdownOpen, setIsDateDropdownOpen] = useState(false);
@@ -28,17 +27,13 @@ export default function DashboardView() {
       setLoading(true);
       setError(null);
       const db = createDynamicSupabaseClient();
-      if (!db) {
-        setLoading(false);
-        return;
-      }
-
+      if (!db) { setLoading(false); return; }
       const range = getDateRange(dateRange);
       const result = await fetchDashboardMetrics(db, range);
       setMetrics(result);
     } catch (e: any) {
       console.error('Erro ao carregar dados do dashboard:', e);
-      setError(e.message || 'Erro de conexão. Verifique a URL e Anon Key nas Configurações.');
+      setError(e.message || 'Erro de conexão.');
     } finally {
       setLoading(false);
     }
@@ -56,8 +51,8 @@ export default function DashboardView() {
     return (
       <div className="flex flex-col items-center justify-center h-64 text-muted-foreground">
         <Calendar className="w-12 h-12 mb-3 opacity-40" />
-        <p className="text-sm font-medium">Configuração necessária</p>
-        <p className="text-xs opacity-70 mt-1">Acesse <strong>Configurações</strong> e insira a URL e Anon Key do banco de dados.</p>
+        <p className="text-sm font-light">Configuração necessária</p>
+        <p className="text-xs opacity-70 mt-1">Acesse <strong>Configurações</strong> e insira a URL e Anon Key.</p>
       </div>
     );
   }
@@ -74,7 +69,7 @@ export default function DashboardView() {
     return (
       <div className="flex flex-col items-center justify-center h-64 text-muted-foreground max-w-lg mx-auto text-center">
         <AlertTriangle className="w-12 h-12 mb-3 text-destructive opacity-70" />
-        <p className="text-sm font-medium text-destructive">Erro ao carregar dados</p>
+        <p className="text-sm font-light text-destructive">Erro ao carregar dados</p>
         <p className="text-xs opacity-80 mt-2">{error}</p>
       </div>
     );
@@ -82,29 +77,29 @@ export default function DashboardView() {
 
   return (
     <div className="space-y-6">
-      {/* Título e Filtro */}
+      {/* Header */}
       <div className="flex justify-between items-end mb-2">
         <div>
-          <h2 className="text-2xl font-bold text-foreground tracking-tight">Visão Geral</h2>
-          <p className="text-sm text-muted-foreground mt-1">Acompanhe o volume e a velocidade de atendimento. <span className="opacity-60">(Horário de Brasília)</span></p>
+          <h2 className="text-2xl font-light text-foreground tracking-tight">Visão Geral</h2>
+          <p className="text-sm text-muted-foreground font-light mt-1">Acompanhe o volume e a velocidade de atendimento. <span className="opacity-60">(Horário de Brasília)</span></p>
         </div>
         <div className="flex gap-2 relative">
           <button
             onClick={() => setIsDateDropdownOpen(!isDateDropdownOpen)}
-            className="flex items-center gap-2 px-4 py-2 bg-card border border-border rounded-lg text-sm font-semibold text-foreground hover:bg-muted transition-colors shadow-sm"
+            className="flex items-center gap-2 px-4 py-2 bg-card border border-border rounded-xl text-sm font-light text-foreground hover:bg-secondary transition-colors"
           >
             <Calendar className="w-4 h-4 text-muted-foreground" />
             <span>{dateRange}</span>
             <ChevronDown className="w-4 h-4 text-muted-foreground ml-2" />
           </button>
           {isDateDropdownOpen && (
-            <div className="absolute top-full right-0 mt-2 w-48 bg-card border border-border rounded-lg shadow-climo-md z-50 overflow-hidden">
+            <div className="absolute top-full right-0 mt-2 w-48 bg-card border border-border rounded-2xl z-50 overflow-hidden">
               {DATE_OPTIONS.map((option) => (
                 <button
                   key={option}
                   onClick={() => { setDateRange(option); setIsDateDropdownOpen(false); }}
-                  className={`w-full text-left px-4 py-2.5 text-sm hover:bg-muted transition-colors ${
-                    dateRange === option ? 'text-primary font-medium bg-primary/5' : 'text-foreground'
+                  className={`w-full text-left px-4 py-2.5 text-sm font-light hover:bg-secondary transition-colors ${
+                    dateRange === option ? 'text-primary bg-primary/5' : 'text-foreground'
                   }`}
                 >
                   {option}
@@ -115,110 +110,103 @@ export default function DashboardView() {
         </div>
       </div>
 
-      {/* O NOVO LAYOUT DE 3 PAINÉIS */}
+      {/* Main Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:h-[420px]">
-
-        {/* PAINEL ESQUERDO: Gráfico de Barras Empilhadas */}
-        <div className="lg:col-span-2 bg-card border border-border rounded-lg p-6 shadow-climo-sm flex flex-col h-full">
+        {/* Chart */}
+        <div className="lg:col-span-2 bg-card border border-border rounded-2xl p-6 flex flex-col h-full">
           <div className="flex justify-between items-start mb-6">
-            <h3 className="text-lg font-semibold text-foreground">Atendimentos Últimos 7 dias</h3>
+            <h3 className="text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground">Atendimentos Últimos 7 dias</h3>
           </div>
           <div className="flex-1 w-full min-h-[250px]">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={metrics?.weeklyData ?? []} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
-                <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12, fontWeight: 500 }} dy={10} />
-                <YAxis axisLine={false} tickLine={false} tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12, fontWeight: 500 }} allowDecimals={false} />
-                <Tooltip cursor={{ fill: 'hsl(var(--muted))', opacity: 0.5 }} contentStyle={{ backgroundColor: 'hsl(var(--popover))', borderColor: 'hsl(var(--border))', borderRadius: '8px', color: 'hsl(var(--popover-foreground))', fontWeight: 500 }} content={({ active, payload, label }) => {
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.05)" />
+                <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 11, fontWeight: 300, fontFamily: 'Outfit' }} dy={10} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 11, fontWeight: 300, fontFamily: 'Outfit' }} allowDecimals={false} />
+                <Tooltip cursor={{ fill: 'rgba(255,255,255,0.03)' }} contentStyle={{ backgroundColor: '#121824', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '12px', color: '#fff', fontWeight: 300, fontFamily: 'Outfit' }} content={({ active, payload, label }) => {
                   if (!active || !payload?.length) return null;
                   const total = payload.reduce((sum: number, p: any) => sum + (p.value ?? 0), 0);
                   return (
-                    <div style={{ backgroundColor: 'hsl(var(--popover))', border: '1px solid hsl(var(--border))', borderRadius: '8px', padding: '8px 12px', color: 'hsl(var(--popover-foreground))', fontWeight: 500, fontSize: '13px' }}>
-                      <p>{label}</p>
-                      <p style={{ fontWeight: 700 }}>Atendimentos: {total}</p>
+                    <div style={{ backgroundColor: '#121824', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '12px', padding: '8px 12px', color: '#fff', fontWeight: 300, fontFamily: 'Outfit', fontSize: '13px' }}>
+                      <p style={{ opacity: 0.5 }}>{label}</p>
+                      <p>Atendimentos: <strong>{total}</strong></p>
                     </div>
                   );
                 }} />
-                <Bar dataKey="resolvidoIA" stackId="a" fill="hsl(var(--chart-1))" maxBarSize={50} />
-                <Bar dataKey="transbordo" stackId="a" fill="hsl(var(--chart-1))" radius={[6, 6, 0, 0]} maxBarSize={50} />
+                <Bar dataKey="resolvidoIA" stackId="a" fill="hsl(217, 91%, 60%)" maxBarSize={50} />
+                <Bar dataKey="transbordo" stackId="a" fill="hsl(217, 91%, 60%)" radius={[8, 8, 0, 0]} maxBarSize={50} />
               </BarChart>
             </ResponsiveContainer>
           </div>
         </div>
 
-        {/* PAINEL DIREITO: 2 Cards Empilhados */}
+        {/* Right Cards */}
         <div className="lg:col-span-1 flex flex-col gap-6 h-full">
-
-          {/* Card 1: Total de Atendimentos */}
-          <div className="bg-card border border-border rounded-lg p-6 shadow-climo-sm flex-1 flex flex-col justify-between">
+          <div className="bg-card border border-border rounded-2xl p-6 flex-1 flex flex-col justify-between">
             <div className="flex justify-between items-start">
-              <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Total de Atendimentos</h3>
-              <Target className="w-5 h-5 text-chart-1" />
+              <h3 className="text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground">Total de Atendimentos</h3>
+              <Target className="w-5 h-5 text-primary" />
             </div>
             <div className="flex items-baseline gap-3 my-4">
-              <span className="text-6xl font-bold text-foreground tracking-tight">{metrics?.totalAtendimentos ?? 0}</span>
-              <span className="text-sm font-semibold text-emerald-500">no período</span>
+              <span className="text-6xl font-light text-foreground tracking-tight">{metrics?.totalAtendimentos ?? 0}</span>
+              <span className="text-xs font-medium text-climo-success">no período</span>
             </div>
           </div>
 
-          {/* Card 2: Tempo Médio Conversa IA */}
-          <div className="bg-card border border-border rounded-lg p-6 shadow-climo-sm flex-1 flex flex-col justify-between">
+          <div className="bg-card border border-border rounded-2xl p-6 flex-1 flex flex-col justify-between">
             <div className="flex justify-between items-start">
-              <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Tempo Médio Conversa IA</h3>
-              <Timer className="w-5 h-5 text-chart-1" />
+              <h3 className="text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground">Tempo Médio Conversa IA</h3>
+              <Timer className="w-5 h-5 text-primary" />
             </div>
             <div className="my-4">
-              <span className="text-5xl font-bold text-foreground tracking-tight">{formatSeconds(metrics?.tempoConversaIaSeg ?? 0)}</span>
+              <span className="text-5xl font-light text-foreground tracking-tight">{formatSeconds(metrics?.tempoConversaIaSeg ?? 0)}</span>
             </div>
           </div>
-
         </div>
       </div>
 
-      {/* SEGUNDA FILEIRA: 3 Cards de Métricas */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {/* Tempo Médio Espera Humano */}
-        <div className="bg-card border border-border rounded-lg p-5 shadow-climo-sm">
+      {/* Second Row */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+        <div className="bg-card border border-border rounded-2xl p-5">
           <div className="flex justify-between items-start mb-3">
-            <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Espera Humano</h3>
-            <Clock className="w-4 h-4 text-chart-2" />
+            <h3 className="text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground">Espera Humano</h3>
+            <Clock className="w-4 h-4 text-primary/60" />
           </div>
-          <span className="text-3xl font-bold text-foreground tracking-tight">
+          <span className="text-3xl font-light text-foreground tracking-tight">
             {formatSeconds(metrics?.tempoEsperaHumanoSeg ?? 0)}
           </span>
-          <p className="text-xs text-muted-foreground mt-2">Tempo médio até atendente</p>
+          <p className="text-xs text-muted-foreground font-light mt-2">Tempo médio até atendente</p>
         </div>
 
-        {/* Horário de Pico */}
-        <div className="bg-card border border-border rounded-lg p-5 shadow-climo-sm">
+        <div className="bg-card border border-border rounded-2xl p-5">
           <div className="flex justify-between items-start mb-3">
-            <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Horário de Pico</h3>
-            <Zap className="w-4 h-4 text-chart-4" />
+            <h3 className="text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground">Horário de Pico</h3>
+            <Zap className="w-4 h-4 text-primary/60" />
           </div>
-          <span className="text-3xl font-bold text-foreground tracking-tight">
+          <span className="text-3xl font-light text-foreground tracking-tight">
             {metrics?.horarioPico ?? '—'}
           </span>
-          <p className="text-xs text-muted-foreground mt-2">Maior volume (Brasília)</p>
+          <p className="text-xs text-muted-foreground font-light mt-2">Maior volume (Brasília)</p>
         </div>
       </div>
 
-      {/* TERCEIRA FILEIRA: Gráfico Volume por Hora */}
-      <div className="bg-card border border-border rounded-lg p-6 shadow-climo-sm">
+      {/* Third Row */}
+      <div className="bg-card border border-border rounded-2xl p-6">
         <div className="flex justify-between items-start mb-4">
           <div>
-            <h3 className="text-lg font-semibold text-foreground">Volume por Hora do Dia</h3>
-            <p className="text-xs text-muted-foreground mt-1">Distribuição ao longo do dia (Brasília)</p>
+            <h3 className="text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground">Volume por Hora do Dia</h3>
+            <p className="text-xs text-muted-foreground font-light mt-1">Distribuição ao longo do dia (Brasília)</p>
           </div>
-          <BarChart3 className="w-5 h-5 text-chart-3" />
+          <BarChart3 className="w-5 h-5 text-primary/60" />
         </div>
         <div className="w-full h-[250px]">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={metrics?.volumePorHora ?? []} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
-               <XAxis dataKey="hora" axisLine={false} tickLine={false} tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11, fontWeight: 500 }} dy={10} interval={1} angle={-45} textAnchor="end" height={50} />
-               <YAxis axisLine={false} tickLine={false} tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12, fontWeight: 500 }} allowDecimals={false} width={30} />
-              <Tooltip cursor={{ fill: 'hsl(var(--muted))', opacity: 0.5 }} contentStyle={{ backgroundColor: 'hsl(var(--popover))', borderColor: 'hsl(var(--border))', borderRadius: '8px', color: 'hsl(var(--popover-foreground))', fontWeight: 500 }} />
-              <Bar dataKey="total" fill="hsl(var(--chart-3))" name="Atendimentos" radius={[6, 6, 0, 0]} maxBarSize={50} />
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.05)" />
+              <XAxis dataKey="hora" axisLine={false} tickLine={false} tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 11, fontWeight: 300, fontFamily: 'Outfit' }} dy={10} interval={1} angle={-45} textAnchor="end" height={50} />
+              <YAxis axisLine={false} tickLine={false} tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 11, fontWeight: 300, fontFamily: 'Outfit' }} allowDecimals={false} width={30} />
+              <Tooltip cursor={{ fill: 'rgba(255,255,255,0.03)' }} contentStyle={{ backgroundColor: '#121824', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '12px', color: '#fff', fontWeight: 300, fontFamily: 'Outfit' }} />
+              <Bar dataKey="total" fill="hsl(220, 60%, 50%)" name="Atendimentos" radius={[8, 8, 0, 0]} maxBarSize={50} />
             </BarChart>
           </ResponsiveContainer>
         </div>
