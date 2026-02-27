@@ -1,5 +1,6 @@
 import { Sun, Moon, RefreshCw, Settings, Calendar, ChevronDown } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import climoAvatar from '@/assets/climo-avatar.jpg';
 
 interface ClimoTopbarProps {
   activeTab: string;
@@ -61,9 +62,7 @@ export default function ClimoTopbar({ activeTab }: ClimoTopbarProps) {
         </button>
 
         {/* Avatar */}
-        <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-primary text-xs font-medium ml-1">
-          G
-        </div>
+        <img src={climoAvatar} alt="Climo avatar" className="w-8 h-8 rounded-full object-cover ml-1" />
       </div>
     </header>
   );
