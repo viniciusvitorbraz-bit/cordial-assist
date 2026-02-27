@@ -14,10 +14,10 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    if (email === 'admin@climo.com.br' && password === 'admin123') {
+    if (email === 'climo@2026.com.br' && password === '2302@atendimento') {
       onLogin();
     } else {
-      setError('Credenciais inválidas. Use admin@climo.com.br / admin123');
+      setError('Credenciais inválidas. Verifique seu e-mail e senha.');
     }
   };
 
