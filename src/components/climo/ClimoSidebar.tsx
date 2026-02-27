@@ -2,6 +2,7 @@ import {
   LayoutDashboard, MessageSquare, Settings,
   BrainCircuit, LogOut, ChevronLeft, ChevronRight, Users,
 } from 'lucide-react';
+import climoAvatar from '@/assets/climo-avatar.jpg';
 
 interface ClimoSidebarProps {
   activeTab: string;
@@ -90,13 +91,11 @@ export default function ClimoSidebar({
         )}
 
         <div className={`flex items-center gap-3 ${collapsed ? 'justify-center' : ''}`}>
-          <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary text-xs font-medium shrink-0">
-            G
-          </div>
+          <img src={climoAvatar} alt="Climo avatar" className="w-8 h-8 rounded-full object-cover shrink-0" />
           {!collapsed && (
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-light truncate text-foreground">Dr. Gestor</p>
-              <p className="text-[11px] text-sidebar-foreground/40 truncate">admin@climo.com.br</p>
+              <p className="text-sm font-light truncate text-foreground">Climo - Santa Maria</p>
+              <p className="text-[11px] text-sidebar-foreground/40 truncate">climo@2026.com.br</p>
             </div>
           )}
         </div>
