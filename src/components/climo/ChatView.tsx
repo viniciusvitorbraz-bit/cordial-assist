@@ -491,7 +491,7 @@ export default function ChatView() {
               <button
                 key={convo.id}
                 onClick={() => setSelectedConvo(convo)}
-                className={`w-full text-left px-3 py-3 border-b border-border/50 hover:bg-muted/30 transition-colors ${
+                className={`w-full text-left px-3 py-3 border-b border-white/[0.03] hover:bg-muted/30 transition-colors ${
                   isSelected ? 'bg-primary/10' : ''
                 }`}
               >
@@ -560,23 +560,8 @@ export default function ChatView() {
                 </span>
               </div>
 
-              {/* Message count stats + AI toggle */}
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4 text-[11px] text-muted-foreground">
-                  <span className="flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-climo-success" />
-                    Contato: {msgStats.contato}
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-destructive" />
-                    Humano: {msgStats.humano}
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-primary" />
-                    Agente: {msgStats.agente}
-                  </span>
-                </div>
-
+              {/* AI toggle only */}
+              <div className="flex items-center justify-end">
                 <button
                   onClick={toggleAi}
                   disabled={togglingAi}
