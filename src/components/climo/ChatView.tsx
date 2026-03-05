@@ -90,6 +90,8 @@ export default function ChatView() {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [visibleCount, setVisibleCount] = useState(50);
+  const listRef = useRef<HTMLDivElement>(null);
 
   const callProxy = useCallback(async (endpoint: string, method = 'GET', body?: any) => {
     const { data, error } = await supabase.functions.invoke('chatwoot-proxy', {
@@ -329,6 +331,22 @@ export default function ChatView() {
     return name.includes(q) || phone.includes(q);
   });
 
+  // Virtual pagination: only render visibleCount items
+  const visibleConversations = filteredConversations.slice(0, visibleCount);
+  const hasMore = visibleCount < filteredConversations.length;
+
+  // Reset visible count when search changes
+  useEffect(() => { setVisibleCount(50); }, [searchQuery]);
+
+  // Infinite scroll handler
+  const handleListScroll = useCallback(() => {
+    const el = listRef.current;
+    if (!el || !hasMore) return;
+    if (el.scrollTop + el.clientHeight >= el.scrollHeight - 100) {
+      setVisibleCount(prev => Math.min(prev + 50, filteredConversations.length));
+    }
+  }, [hasMore, filteredConversations.length]);
+
   // Message type label - matching reference: CONTATO (green), HUMANO (red/warm)
   const getMessageLabel = (msg: Message) => {
     if (msg.message_type === 0) return { text: 'CONTATO', cls: 'bg-climo-success/20 text-climo-success' };
@@ -420,7 +438,7 @@ export default function ChatView() {
         </div>
 
         {/* List */}
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto" ref={listRef} onScroll={handleListScroll}>
           {error && (
             <div className="p-3 space-y-2">
               <div className="flex items-start gap-2 p-2.5 bg-destructive/10 border border-destructive/20 rounded-lg">
@@ -451,7 +469,7 @@ export default function ChatView() {
               <button onClick={loadExampleData} className="mt-2 text-xs text-primary hover:underline">Carregar dados de exemplo</button>
             </div>
           )}
-          {filteredConversations.map((convo) => {
+          {visibleConversations.map((convo) => {
             const sender = convo.meta?.sender;
             const isSelected = selectedConvo?.id === convo.id;
             return (
@@ -480,6 +498,11 @@ export default function ChatView() {
               </button>
             );
           })}
+          {hasMore && (
+            <div className="flex items-center justify-center py-3">
+              <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+            </div>
+          )}
         </div>
       </div>
 
