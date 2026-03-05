@@ -104,6 +104,7 @@ export default function ChatView() {
       },
     });
     if (error) throw new Error(error.message || 'Erro ao chamar proxy');
+    if (data?._proxy_error) throw new Error(data.error || 'Erro no proxy');
     if (data?.error) throw new Error(data.error);
     return data;
   }, [token, baseUrl]);

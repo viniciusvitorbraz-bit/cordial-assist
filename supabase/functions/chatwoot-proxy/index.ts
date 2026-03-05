@@ -5,6 +5,19 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
 };
 
+async function fetchWithRetry(url: string, options: RequestInit, retries = 3): Promise<Response> {
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      return await fetch(url, options);
+    } catch (err) {
+      console.warn(`Attempt ${attempt}/${retries} failed for ${url}: ${err.message}`);
+      if (attempt === retries) throw err;
+      await new Promise(r => setTimeout(r, 800 * attempt));
+    }
+  }
+  throw new Error("Unreachable");
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -42,7 +55,7 @@ Deno.serve(async (req) => {
       fetchOptions.body = JSON.stringify(body);
     }
 
-    const response = await fetch(targetUrl, fetchOptions);
+    const response = await fetchWithRetry(targetUrl, fetchOptions);
     const data = await response.text();
 
     let parsed;
@@ -58,9 +71,10 @@ Deno.serve(async (req) => {
     });
   } catch (error) {
     console.error("Proxy error:", error);
+    // Return 200 with error field so supabase.functions.invoke returns data, not error
     return new Response(
-      JSON.stringify({ error: `Proxy error: ${error.message}` }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      JSON.stringify({ _proxy_error: true, error: `Proxy error: ${error.message}` }),
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
 });
