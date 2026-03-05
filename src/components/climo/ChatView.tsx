@@ -108,7 +108,7 @@ export default function ChatView() {
     return data;
   }, [token, baseUrl]);
 
-  // Fetch ALL conversations with pagination
+  // Fetch ALL conversations with pagination + retry logic
   const fetchConversations = useCallback(async () => {
     if (!connected) return;
     setLoading(true);
@@ -117,26 +117,41 @@ export default function ChatView() {
     try {
       const allConversations: Conversation[] = [];
       let page = 1;
-      let hasMore = true;
+      let totalPages = Infinity;
 
-      while (hasMore) {
-        const data = await callProxy(`/api/v1/accounts/${accountId}/conversations?page=${page}`);
+      const fetchPageWithRetry = async (p: number, retries = 3): Promise<any> => {
+        for (let attempt = 1; attempt <= retries; attempt++) {
+          try {
+            return await callProxy(`/api/v1/accounts/${accountId}/conversations?page=${p}`);
+          } catch (err) {
+            if (attempt === retries) throw err;
+            // Wait before retrying (exponential backoff)
+            await new Promise(r => setTimeout(r, 1000 * attempt));
+          }
+        }
+      };
+
+      while (page <= totalPages) {
+        const data = await fetchPageWithRetry(page);
         const payload = data.data?.payload || [];
+        const meta = data.data?.meta;
+        
+        // Use all_count from meta to calculate total pages
+        if (meta?.all_count && totalPages === Infinity) {
+          totalPages = Math.ceil(meta.all_count / 25);
+        }
+
         allConversations.push(...payload);
         
-        // Chatwoot returns 25 per page by default. If we get less, we're done.
-        if (payload.length < 25) {
-          hasMore = false;
-        } else {
-          page++;
-        }
+        if (payload.length < 25) break;
+        page++;
       }
 
       setConversations(allConversations);
     } catch (err: any) {
       let msg = err.message || 'Erro desconhecido';
-      if (msg.includes('Failed to fetch') || msg.includes('FunctionsHttpError')) {
-        msg = 'Erro de conexão com o proxy. Verifique se a URL e o Token estão corretos nas configurações.';
+      if (msg.includes('Failed to fetch') || msg.includes('FunctionsHttpError') || msg.includes('dns error') || msg.includes('name resolution')) {
+        msg = 'Erro de conexão com o servidor. Tente novamente em alguns segundos.';
       }
       setError(msg);
       setConversations([]);
