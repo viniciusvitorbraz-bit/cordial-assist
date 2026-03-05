@@ -132,25 +132,33 @@ export default function ChatView() {
       };
 
       while (page <= totalPages) {
-        const data = await fetchPageWithRetry(page);
-        const payload = data.data?.payload || [];
-        const meta = data.data?.meta;
-        
-        // Use all_count from meta to calculate total pages
-        if (meta?.all_count && totalPages === Infinity) {
-          totalPages = Math.ceil(meta.all_count / 25);
-        }
+        try {
+          const data = await fetchPageWithRetry(page);
+          const payload = data.data?.payload || [];
+          const meta = data.data?.meta;
+          
+          if (meta?.all_count && totalPages === Infinity) {
+            totalPages = Math.ceil(meta.all_count / 25);
+          }
 
-        allConversations.push(...payload);
-        
-        if (payload.length < 25) break;
-        page++;
+          allConversations.push(...payload);
+          
+          if (payload.length < 25) break;
+          page++;
+        } catch (pageErr) {
+          console.warn(`Falha ao carregar página ${page}, usando dados parciais`, pageErr);
+          break; // Stop pagination but keep what we have
+        }
       }
 
-      setConversations(allConversations);
+      if (allConversations.length > 0) {
+        setConversations(allConversations);
+      } else {
+        throw new Error('Nenhuma conversa carregada');
+      }
     } catch (err: any) {
       let msg = err.message || 'Erro desconhecido';
-      if (msg.includes('Failed to fetch') || msg.includes('FunctionsHttpError') || msg.includes('dns error') || msg.includes('name resolution')) {
+      if (msg.includes('Failed to fetch') || msg.includes('FunctionsHttpError') || msg.includes('non-2xx') || msg.includes('dns error') || msg.includes('name resolution')) {
         msg = 'Erro de conexão com o servidor. Tente novamente em alguns segundos.';
       }
       setError(msg);
