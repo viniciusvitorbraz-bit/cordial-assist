@@ -78,7 +78,6 @@ export default function ChatView() {
   const [loadingMsgs, setLoadingMsgs] = useState(false);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState('');
-  const [filter, setFilter] = useState<'open' | 'pending' | 'resolved' | 'all'>('open');
   const [showConfig, setShowConfig] = useState(false);
   const [usingExampleData, setUsingExampleData] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -107,15 +106,31 @@ export default function ChatView() {
     return data;
   }, [token, baseUrl]);
 
+  // Fetch ALL conversations with pagination
   const fetchConversations = useCallback(async () => {
     if (!connected) return;
     setLoading(true);
     setError('');
     setUsingExampleData(false);
     try {
-      const statusParam = filter === 'all' ? '' : `&status=${filter}`;
-      const data = await callProxy(`/api/v1/accounts/${accountId}/conversations?page=1${statusParam}`);
-      setConversations(data.data?.payload || []);
+      const allConversations: Conversation[] = [];
+      let page = 1;
+      let hasMore = true;
+
+      while (hasMore) {
+        const data = await callProxy(`/api/v1/accounts/${accountId}/conversations?page=${page}`);
+        const payload = data.data?.payload || [];
+        allConversations.push(...payload);
+        
+        // Chatwoot returns 25 per page by default. If we get less, we're done.
+        if (payload.length < 25) {
+          hasMore = false;
+        } else {
+          page++;
+        }
+      }
+
+      setConversations(allConversations);
     } catch (err: any) {
       let msg = err.message || 'Erro desconhecido';
       if (msg.includes('Failed to fetch') || msg.includes('FunctionsHttpError')) {
@@ -126,7 +141,7 @@ export default function ChatView() {
     } finally {
       setLoading(false);
     }
-  }, [connected, filter, accountId, callProxy]);
+  }, [connected, accountId, callProxy]);
 
   const fetchMessages = useCallback(async (convoId: number) => {
     if (usingExampleData) return;
@@ -314,12 +329,18 @@ export default function ChatView() {
     return name.includes(q) || phone.includes(q);
   });
 
-  // Helper to get message type label
+  // Message type label - matching reference: CONTATO (green), HUMANO (red/warm)
   const getMessageLabel = (msg: Message) => {
-    // message_type: 0 = incoming (contact), 1 = outgoing (human/agent), 2 = activity
-    if (msg.message_type === 0) return { text: 'CONTATO', cls: 'bg-primary/20 text-primary' };
-    if (msg.message_type === 1) return { text: 'HUMANO', cls: 'bg-climo-success/20 text-climo-success' };
+    if (msg.message_type === 0) return { text: 'CONTATO', cls: 'bg-climo-success/20 text-climo-success' };
+    if (msg.message_type === 1) return { text: 'HUMANO', cls: 'bg-destructive/20 text-destructive' };
     return null;
+  };
+
+  // Count messages by type for the header stats
+  const msgStats = {
+    contato: messages.filter(m => m.message_type === 0).length,
+    humano: messages.filter(m => m.message_type === 1).length,
+    agente: messages.filter(m => m.message_type === 2).length,
   };
 
   // --- CONFIG SCREEN ---
@@ -382,7 +403,9 @@ export default function ChatView() {
 
         {/* Count + actions */}
         <div className="px-3 py-2 border-b border-border flex items-center justify-between">
-          <span className="text-xs text-muted-foreground">{filteredConversations.length} conversas</span>
+          <span className="text-xs text-muted-foreground">
+            {loading ? 'Carregando...' : `${filteredConversations.length} conversas`}
+          </span>
           <div className="flex items-center gap-1">
             <button onClick={() => setShowConfig(true)} className="p-1 hover:bg-muted rounded-md transition-colors" title="Configurações">
               <Settings className="w-3.5 h-3.5 text-muted-foreground" />
@@ -394,18 +417,6 @@ export default function ChatView() {
               <X className="w-3.5 h-3.5 text-destructive" />
             </button>
           </div>
-        </div>
-
-        {/* Filters */}
-        <div className="px-3 py-2 border-b border-border flex gap-1">
-          {(['open', 'pending', 'resolved', 'all'] as const).map((f) => (
-            <button key={f} onClick={() => setFilter(f)}
-              className={`text-[10px] px-2 py-1 rounded-full font-medium transition-colors ${
-                filter === f ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-muted/80'
-              }`}>
-              {f === 'open' ? 'Abertas' : f === 'pending' ? 'Pendentes' : f === 'resolved' ? 'Resolvidas' : 'Todas'}
-            </button>
-          ))}
         </div>
 
         {/* List */}
@@ -448,7 +459,7 @@ export default function ChatView() {
                 key={convo.id}
                 onClick={() => setSelectedConvo(convo)}
                 className={`w-full text-left px-3 py-3 border-b border-border/50 hover:bg-muted/30 transition-colors ${
-                  isSelected ? 'bg-primary/10 border-l-[3px] border-l-primary' : 'border-l-[3px] border-l-transparent'
+                  isSelected ? 'bg-primary/10' : ''
                 }`}
               >
                 <div className="flex items-center gap-3">
@@ -463,7 +474,7 @@ export default function ChatView() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-foreground truncate">{sender?.name || 'Sem nome'}</p>
-                    <p className="text-[11px] text-muted-foreground truncate">{sender?.phone_number || `Conv: #${convo.id}`}</p>
+                    <p className="text-[11px] text-muted-foreground truncate">{sender?.phone_number || ''}</p>
                   </div>
                 </div>
               </button>
@@ -494,7 +505,7 @@ export default function ChatView() {
               </div>
 
               {/* Info chips */}
-              <div className="flex flex-wrap items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2 mb-2">
                 <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-muted rounded-lg text-xs font-medium text-foreground">
                   ✦ {selectedConvo.meta?.sender?.name || 'Sem nome'}
                 </span>
@@ -509,12 +520,29 @@ export default function ChatView() {
                 <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-[11px] font-semibold ${statusBadge(selectedConvo.status).cls}`}>
                   {statusBadge(selectedConvo.status).label}
                 </span>
+              </div>
 
-                {/* AI Toggle */}
+              {/* Message count stats + AI toggle */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4 text-[11px] text-muted-foreground">
+                  <span className="flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-climo-success" />
+                    Contato: {msgStats.contato}
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-destructive" />
+                    Humano: {msgStats.humano}
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-primary" />
+                    Agente: {msgStats.agente}
+                  </span>
+                </div>
+
                 <button
                   onClick={toggleAi}
                   disabled={togglingAi}
-                  className={`ml-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium transition-colors ${
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium transition-colors ${
                     aiPaused
                       ? 'bg-primary/10 text-primary hover:bg-primary/20'
                       : 'bg-destructive/10 text-destructive hover:bg-destructive/20'
@@ -613,7 +641,7 @@ export default function ChatView() {
 
             {/* Input Area */}
             <div className="p-3 border-t border-border bg-card/50">
-              <p className="text-[10px] text-muted-foreground mb-2 ml-1">Enviar como humano</p>
+              <p className="text-[10px] text-muted-foreground mb-2 ml-1">Enviar mensagem como humano</p>
               <div className="flex items-center gap-2">
                 <div className="flex items-center gap-1">
                   <button className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors" title="Imagem">
@@ -658,7 +686,7 @@ export default function ChatView() {
           <div className="flex-1 flex items-center justify-center text-center">
             <div>
               <Send className="w-12 h-12 text-muted-foreground/20 mx-auto mb-3" />
-              <p className="text-sm text-muted-foreground">Selecione uma conversa</p>
+              <p className="text-sm text-muted-foreground">Por favor, selecione uma conversa no painel da esquerda</p>
             </div>
           </div>
         )}
