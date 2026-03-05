@@ -371,10 +371,10 @@ export default function ChatView() {
     }
   }, [hasMore, filteredConversations.length]);
 
-  // Message type label - matching reference: CONTATO (green), HUMANO (red/warm)
+  // Message type label - matching reference: CONTATO (green), CLIMO (red/warm)
   const getMessageLabel = (msg: Message) => {
     if (msg.message_type === 0) return { text: 'CONTATO', cls: 'bg-climo-success/20 text-climo-success' };
-    if (msg.message_type === 1) return { text: 'HUMANO', cls: 'bg-destructive/20 text-destructive' };
+    if (msg.message_type === 1) return { text: 'CLIMO', cls: 'bg-destructive/20 text-destructive' };
     return null;
   };
 
@@ -474,10 +474,6 @@ export default function ChatView() {
                   className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-primary text-primary-foreground rounded-lg text-xs font-medium hover:opacity-90 transition-colors">
                   <Settings className="w-3.5 h-3.5" /> Config
                 </button>
-                <button onClick={loadExampleData}
-                  className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-muted text-muted-foreground rounded-lg text-xs font-medium hover:bg-muted/80 transition-colors">
-                  <Database className="w-3.5 h-3.5" /> Exemplo
-                </button>
               </div>
             </div>
           )}
@@ -490,7 +486,7 @@ export default function ChatView() {
             <div className="text-center p-8 text-muted-foreground">
               <Inbox className="w-8 h-8 mx-auto mb-2 opacity-50" />
               <p className="text-xs">Nenhuma conversa encontrada</p>
-              <button onClick={loadExampleData} className="mt-2 text-xs text-primary hover:underline">Carregar dados de exemplo</button>
+              
             </div>
           )}
           {visibleConversations.map((convo) => {
@@ -601,7 +597,7 @@ export default function ChatView() {
                   <div key={msg.id} className={`flex flex-col ${isOutgoing ? 'items-end' : 'items-start'}`}>
                     {/* Message type label */}
                     {label && (
-                      <span className={`text-[10px] font-bold tracking-wider px-2 py-0.5 rounded mb-1 ${label.cls}`}>
+                      <span className={`text-[8px] font-semibold tracking-wider px-1.5 py-px rounded mb-0.5 ${label.cls}`}>
                         {label.text}
                       </span>
                     )}
@@ -673,7 +669,7 @@ export default function ChatView() {
 
             {/* Input Area */}
             <div className="p-3 border-t border-border bg-card/50">
-              <p className="text-[10px] text-muted-foreground mb-2 ml-1">Enviar mensagem como humano</p>
+              <p className="text-[10px] text-muted-foreground mb-2 ml-1">Enviar mensagem como Climo</p>
               <div className="flex items-center gap-2">
                 <div className="flex items-center gap-1">
                   <button className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors" title="Imagem">
@@ -755,12 +751,7 @@ export default function ChatView() {
         </div>
       )}
 
-      {/* Example data banner */}
-      {usingExampleData && (
-        <div className="absolute top-2 left-1/2 -translate-x-1/2 z-10 bg-accent text-accent-foreground text-[10px] px-3 py-1 rounded-full font-medium shadow">
-          📋 Dados de exemplo — conecte à API para dados reais
-        </div>
-      )}
+      
     </div>
   );
 }
