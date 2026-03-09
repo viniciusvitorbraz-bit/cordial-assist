@@ -115,35 +115,53 @@ export async function fetchDashboardMetrics(
     }
 
     for (const [, evts] of byConversation) {
-      const getTime = (type: string) => {
-        const e = evts.find(ev => ev.event_type === type);
-        return e ? new Date(e.created_at).getTime() : null;
-      };
+      // Sort events chronologically within this conversation
+      const sorted = [...evts].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
 
-      const conversationStarted = getTime('conversation_started');
-      const aiStarted = getTime('ai_started');
-      const aiFinished = getTime('ai_finished');
-      const humanStarted = getTime('human_started');
+      const conversationStartedEv = sorted.find(ev => ev.event_type === 'conversation_started');
+      const humanStartedEv = sorted.find(ev => ev.event_type === 'human_started');
 
-      if (conversationStarted !== null) {
+      if (conversationStartedEv) {
         totalAtendimentos++;
-        const brasiliaDate = toBrasilia(conversationStarted);
+        const ts = new Date(conversationStartedEv.created_at).getTime();
+        const brasiliaDate = toBrasilia(ts);
         const hour = brasiliaDate.getUTCHours();
         hourCounts.set(hour, (hourCounts.get(hour) ?? 0) + 1);
       }
 
-      if (aiStarted !== null && aiFinished !== null) {
-        const diff = (aiFinished - aiStarted) / 1000;
-        console.log(`[DEBUG IA] conv=${evts[0]?.conversation_id?.slice(0,8)} | ai_started=${new Date(aiStarted).toISOString()} | ai_finished=${new Date(aiFinished).toISOString()} | diff=${diff}s (${(diff/60).toFixed(1)}min)`);
-        if (diff > 0) temposIA.push(diff);
+      // Pair each ai_started with the NEXT ai_finished that comes after it chronologically
+      const aiStartEvents = sorted.filter(ev => ev.event_type === 'ai_started');
+      const aiFinishEvents = sorted.filter(ev => ev.event_type === 'ai_finished');
+
+      for (const startEv of aiStartEvents) {
+        const startTime = new Date(startEv.created_at).getTime();
+        // Find the first ai_finished AFTER this ai_started
+        const matchingFinish = aiFinishEvents.find(fe => new Date(fe.created_at).getTime() > startTime);
+        if (matchingFinish) {
+          const finishTime = new Date(matchingFinish.created_at).getTime();
+          const diff = (finishTime - startTime) / 1000;
+          console.log(`[DEBUG IA] conv=${evts[0]?.conversation_id?.slice(0,8)} | ai_started=${startEv.created_at} | ai_finished=${matchingFinish.created_at} | diff=${diff}s (${(diff/60).toFixed(1)}min)`);
+          if (diff > 0) temposIA.push(diff);
+        }
       }
-      if (aiFinished !== null && humanStarted !== null) {
-        const diff = (humanStarted - aiFinished) / 1000;
-        if (diff > 0) temposEspera.push(diff);
-      }
-      if (aiStarted !== null && humanStarted !== null) {
-        const diff = (humanStarted - aiStarted) / 1000;
-        if (diff > 0) temposTotal.push(diff);
+
+      // For espera humano: use the LAST ai_finished before human_started
+      if (humanStartedEv) {
+        const humanTime = new Date(humanStartedEv.created_at).getTime();
+        const lastAiFinish = [...aiFinishEvents]
+          .reverse()
+          .find(fe => new Date(fe.created_at).getTime() < humanTime);
+        if (lastAiFinish) {
+          const aiFinishTime = new Date(lastAiFinish.created_at).getTime();
+          const diff = (humanTime - aiFinishTime) / 1000;
+          if (diff > 0) temposEspera.push(diff);
+        }
+        // Tempo total: primeiro ai_started até human_started
+        if (aiStartEvents.length > 0) {
+          const firstAiStart = new Date(aiStartEvents[0].created_at).getTime();
+          const diff = (humanTime - firstAiStart) / 1000;
+          if (diff > 0) temposTotal.push(diff);
+        }
       }
     }
   }
