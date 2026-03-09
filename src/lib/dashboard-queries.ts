@@ -134,6 +134,7 @@ export async function fetchDashboardMetrics(
 
       if (aiStarted !== null && aiFinished !== null) {
         const diff = (aiFinished - aiStarted) / 1000;
+        console.log(`[DEBUG IA] conv=${evts[0]?.conversation_id?.slice(0,8)} | ai_started=${new Date(aiStarted).toISOString()} | ai_finished=${new Date(aiFinished).toISOString()} | diff=${diff}s (${(diff/60).toFixed(1)}min)`);
         if (diff > 0) temposIA.push(diff);
       }
       if (aiFinished !== null && humanStarted !== null) {
