@@ -81,10 +81,45 @@ export async function fetchDashboardMetrics(
 
   if (error) throw new Error(error.message);
 
+  // ── Query 1b: buscar conversation_started de conversas que têm ai_finished/human_started
+  // no período mas cujo conversation_started pode ter sido antes do range ──
+  const conversationIdsInRange = new Set<string>();
+  if (events) {
+    for (const ev of events) {
+      conversationIdsInRange.add(ev.conversation_id);
+    }
+  }
+  // Identificar conversas que têm ai_finished ou human_started mas NÃO têm conversation_started no range
+  const convsWithStart = new Set<string>();
+  const convsNeedingStart: string[] = [];
+  if (events) {
+    for (const ev of events) {
+      if (ev.event_type === 'conversation_started') convsWithStart.add(ev.conversation_id);
+    }
+    for (const cid of conversationIdsInRange) {
+      if (!convsWithStart.has(cid)) convsNeedingStart.push(cid);
+    }
+  }
+
+  // Buscar conversation_started faltantes (de dias anteriores)
+  let extraStartEvents: typeof events = [];
+  if (convsNeedingStart.length > 0) {
+    const { data: extraStarts } = await db
+      .from('conversation_events')
+      .select('id, conversation_id, event_type, created_at')
+      .in('conversation_id', convsNeedingStart)
+      .eq('event_type', 'conversation_started')
+      .order('created_at', { ascending: true });
+    extraStartEvents = extraStarts ?? [];
+  }
+
+  // Mesclar eventos extras com os do período
+  const allEvents = [...(events ?? []), ...extraStartEvents];
+
   // ── Query 2: últimos 7 dias (sempre, independente do filtro) ──
   const todayMidnight = getBrasiliaMidnightUTC();
   const todayEndUTC = new Date(todayMidnight.getTime() + 24 * 60 * 60 * 1000);
-  const sevenDaysAgo = new Date(todayMidnight.getTime() - 6 * 24 * 60 * 60 * 1000); // 6 dias atrás + hoje = 7 dias
+  const sevenDaysAgo = new Date(todayMidnight.getTime() - 6 * 24 * 60 * 60 * 1000);
 
   const { data: weeklyEvents, error: weeklyError } = await db
     .from('conversation_events')
@@ -106,22 +141,22 @@ export async function fetchDashboardMetrics(
   const temposEspera: number[] = [];
   const temposTotal: number[] = [];
 
-  if (events && events.length > 0) {
-    const byConversation = new Map<string, typeof events>();
-    for (const ev of events) {
+  if (allEvents && allEvents.length > 0) {
+    const byConversation = new Map<string, typeof allEvents>();
+    for (const ev of allEvents) {
       const cid = ev.conversation_id;
       if (!byConversation.has(cid)) byConversation.set(cid, []);
       byConversation.get(cid)!.push(ev);
     }
 
     for (const [, evts] of byConversation) {
-      // Sort events chronologically within this conversation
       const sorted = [...evts].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
 
       const conversationStartedEv = sorted.find(ev => ev.event_type === 'conversation_started');
       const humanStartedEv = sorted.find(ev => ev.event_type === 'human_started');
 
-      if (conversationStartedEv) {
+      // Contar atendimentos apenas por conversation_started dentro do range original
+      if (conversationStartedEv && events?.some(e => e.id === conversationStartedEv.id)) {
         totalAtendimentos++;
         const ts = new Date(conversationStartedEv.created_at).getTime();
         const brasiliaDate = toBrasilia(ts);
@@ -130,12 +165,10 @@ export async function fetchDashboardMetrics(
       }
 
       // Tempo IA: conversation_started até primeiro ai_finished
-      // (não existem eventos ai_started na tabela, o fluxo é conversation_started → IA atende → ai_finished)
       const aiFinishEvents = sorted.filter(ev => ev.event_type === 'ai_finished');
 
       if (conversationStartedEv && aiFinishEvents.length > 0) {
         const startTime = new Date(conversationStartedEv.created_at).getTime();
-        // Usar o PRIMEIRO ai_finished como fim do atendimento IA
         const firstFinish = aiFinishEvents[0];
         const finishTime = new Date(firstFinish.created_at).getTime();
         const diff = (finishTime - startTime) / 1000;
