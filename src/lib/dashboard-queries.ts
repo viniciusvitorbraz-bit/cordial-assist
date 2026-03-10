@@ -81,40 +81,8 @@ export async function fetchDashboardMetrics(
 
   if (error) throw new Error(error.message);
 
-  // ── Query 1b: buscar conversation_started de conversas que têm ai_finished/human_started
-  // no período mas cujo conversation_started pode ter sido antes do range ──
-  const conversationIdsInRange = new Set<string>();
-  if (events) {
-    for (const ev of events) {
-      conversationIdsInRange.add(ev.conversation_id);
-    }
-  }
-  // Identificar conversas que têm ai_finished ou human_started mas NÃO têm conversation_started no range
-  const convsWithStart = new Set<string>();
-  const convsNeedingStart: string[] = [];
-  if (events) {
-    for (const ev of events) {
-      if (ev.event_type === 'conversation_started') convsWithStart.add(ev.conversation_id);
-    }
-    for (const cid of conversationIdsInRange) {
-      if (!convsWithStart.has(cid)) convsNeedingStart.push(cid);
-    }
-  }
-
-  // Buscar conversation_started faltantes (de dias anteriores)
-  let extraStartEvents: typeof events = [];
-  if (convsNeedingStart.length > 0) {
-    const { data: extraStarts } = await db
-      .from('conversation_events')
-      .select('id, conversation_id, event_type, created_at')
-      .in('conversation_id', convsNeedingStart)
-      .eq('event_type', 'conversation_started')
-      .order('created_at', { ascending: true });
-    extraStartEvents = extraStarts ?? [];
-  }
-
-  // Mesclar eventos extras com os do período
-  const allEvents = [...(events ?? []), ...extraStartEvents];
+  // Todos os eventos já estão no range, não precisa mais de backfilling
+  const allEvents = events ?? [];
 
   // ── Query 2: últimos 7 dias (sempre, independente do filtro) ──
   const todayMidnight = getBrasiliaMidnightUTC();
