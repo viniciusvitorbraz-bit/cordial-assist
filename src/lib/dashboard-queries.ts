@@ -81,40 +81,8 @@ export async function fetchDashboardMetrics(
 
   if (error) throw new Error(error.message);
 
-  // ── Query 1b: buscar conversation_started de conversas que têm ai_finished/human_started
-  // no período mas cujo conversation_started pode ter sido antes do range ──
-  const conversationIdsInRange = new Set<string>();
-  if (events) {
-    for (const ev of events) {
-      conversationIdsInRange.add(ev.conversation_id);
-    }
-  }
-  // Identificar conversas que têm ai_finished ou human_started mas NÃO têm conversation_started no range
-  const convsWithStart = new Set<string>();
-  const convsNeedingStart: string[] = [];
-  if (events) {
-    for (const ev of events) {
-      if (ev.event_type === 'conversation_started') convsWithStart.add(ev.conversation_id);
-    }
-    for (const cid of conversationIdsInRange) {
-      if (!convsWithStart.has(cid)) convsNeedingStart.push(cid);
-    }
-  }
-
-  // Buscar conversation_started faltantes (de dias anteriores)
-  let extraStartEvents: typeof events = [];
-  if (convsNeedingStart.length > 0) {
-    const { data: extraStarts } = await db
-      .from('conversation_events')
-      .select('id, conversation_id, event_type, created_at')
-      .in('conversation_id', convsNeedingStart)
-      .eq('event_type', 'conversation_started')
-      .order('created_at', { ascending: true });
-    extraStartEvents = extraStarts ?? [];
-  }
-
-  // Mesclar eventos extras com os do período
-  const allEvents = [...(events ?? []), ...extraStartEvents];
+  // Todos os eventos já estão no range, não precisa mais de backfilling
+  const allEvents = events ?? [];
 
   // ── Query 2: últimos 7 dias (sempre, independente do filtro) ──
   const todayMidnight = getBrasiliaMidnightUTC();
@@ -153,6 +121,7 @@ export async function fetchDashboardMetrics(
       const sorted = [...evts].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
 
       const conversationStartedEv = sorted.find(ev => ev.event_type === 'conversation_started');
+      const aiStartedEv = sorted.find(ev => ev.event_type === 'ai_started');
       const humanStartedEv = sorted.find(ev => ev.event_type === 'human_started');
 
       // Contar atendimentos apenas por conversation_started dentro do range original
@@ -164,11 +133,11 @@ export async function fetchDashboardMetrics(
         hourCounts.set(hour, (hourCounts.get(hour) ?? 0) + 1);
       }
 
-      // Tempo IA: conversation_started até primeiro ai_finished
+      // Tempo IA: ai_started até primeiro ai_finished
       const aiFinishEvents = sorted.filter(ev => ev.event_type === 'ai_finished');
 
-      if (conversationStartedEv && aiFinishEvents.length > 0) {
-        const startTime = new Date(conversationStartedEv.created_at).getTime();
+      if (aiStartedEv && aiFinishEvents.length > 0) {
+        const startTime = new Date(aiStartedEv.created_at).getTime();
         const firstFinish = aiFinishEvents[0];
         const finishTime = new Date(firstFinish.created_at).getTime();
         const diff = (finishTime - startTime) / 1000;
@@ -186,9 +155,9 @@ export async function fetchDashboardMetrics(
         if (diff > 0) temposEspera.push(diff);
       }
 
-      // Tempo total: conversation_started até human_started
-      if (conversationStartedEv && humanStartedEv) {
-        const startTime = new Date(conversationStartedEv.created_at).getTime();
+      // Tempo total: ai_started até human_started
+      if (aiStartedEv && humanStartedEv) {
+        const startTime = new Date(aiStartedEv.created_at).getTime();
         const humanTime = new Date(humanStartedEv.created_at).getTime();
         const diff = (humanTime - startTime) / 1000;
         if (diff > 0) temposTotal.push(diff);
