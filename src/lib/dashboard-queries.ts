@@ -74,7 +74,7 @@ export async function fetchDashboardMetrics(
   const { data: events, error } = await db
     .from('conversation_events')
     .select('id, conversation_id, event_type, created_at')
-    .in('event_type', ['conversation_started', 'ai_started', 'ai_finished', 'human_started'])
+    .in('event_type', ['conversation_started', 'ai_finished', 'human_started'])
     .gte('created_at', range.start)
     .lte('created_at', range.end)
     .order('created_at', { ascending: true });
@@ -121,7 +121,6 @@ export async function fetchDashboardMetrics(
       const sorted = [...evts].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
 
       const conversationStartedEv = sorted.find(ev => ev.event_type === 'conversation_started');
-      const aiStartedEv = sorted.find(ev => ev.event_type === 'ai_started');
       const humanStartedEv = sorted.find(ev => ev.event_type === 'human_started');
 
       // Contar atendimentos apenas por conversation_started dentro do range original
@@ -133,11 +132,11 @@ export async function fetchDashboardMetrics(
         hourCounts.set(hour, (hourCounts.get(hour) ?? 0) + 1);
       }
 
-      // Tempo IA: ai_started até primeiro ai_finished
+      // Tempo IA: conversation_started até primeiro ai_finished
       const aiFinishEvents = sorted.filter(ev => ev.event_type === 'ai_finished');
 
-      if (aiStartedEv && aiFinishEvents.length > 0) {
-        const startTime = new Date(aiStartedEv.created_at).getTime();
+      if (conversationStartedEv && aiFinishEvents.length > 0) {
+        const startTime = new Date(conversationStartedEv.created_at).getTime();
         const firstFinish = aiFinishEvents[0];
         const finishTime = new Date(firstFinish.created_at).getTime();
         const diff = (finishTime - startTime) / 1000;
@@ -155,9 +154,9 @@ export async function fetchDashboardMetrics(
         if (diff > 0) temposEspera.push(diff);
       }
 
-      // Tempo total: ai_started até human_started
-      if (aiStartedEv && humanStartedEv) {
-        const startTime = new Date(aiStartedEv.created_at).getTime();
+      // Tempo total: conversation_started até human_started
+      if (conversationStartedEv && humanStartedEv) {
+        const startTime = new Date(conversationStartedEv.created_at).getTime();
         const humanTime = new Date(humanStartedEv.created_at).getTime();
         const diff = (humanTime - startTime) / 1000;
         if (diff > 0) temposTotal.push(diff);
