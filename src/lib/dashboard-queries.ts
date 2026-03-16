@@ -132,11 +132,11 @@ export async function fetchDashboardMetrics(
         hourCounts.set(hour, (hourCounts.get(hour) ?? 0) + 1);
       }
 
-      // Tempo IA: ai_started até primeiro ai_finished
+      // Tempo IA: conversation_started até primeiro ai_finished
       const aiFinishEvents = sorted.filter(ev => ev.event_type === 'ai_finished');
 
-      if (aiStartedEv && aiFinishEvents.length > 0) {
-        const startTime = new Date(aiStartedEv.created_at).getTime();
+      if (conversationStartedEv && aiFinishEvents.length > 0) {
+        const startTime = new Date(conversationStartedEv.created_at).getTime();
         const firstFinish = aiFinishEvents[0];
         const finishTime = new Date(firstFinish.created_at).getTime();
         const diff = (finishTime - startTime) / 1000;
@@ -154,9 +154,9 @@ export async function fetchDashboardMetrics(
         if (diff > 0) temposEspera.push(diff);
       }
 
-      // Tempo total: ai_started até human_started
-      if (aiStartedEv && humanStartedEv) {
-        const startTime = new Date(aiStartedEv.created_at).getTime();
+      // Tempo total: conversation_started até human_started
+      if (conversationStartedEv && humanStartedEv) {
+        const startTime = new Date(conversationStartedEv.created_at).getTime();
         const humanTime = new Date(humanStartedEv.created_at).getTime();
         const diff = (humanTime - startTime) / 1000;
         if (diff > 0) temposTotal.push(diff);
