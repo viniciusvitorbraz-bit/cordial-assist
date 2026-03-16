@@ -121,7 +121,6 @@ export async function fetchDashboardMetrics(
       const sorted = [...evts].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
 
       const conversationStartedEv = sorted.find(ev => ev.event_type === 'conversation_started');
-      const aiStartedEv = sorted.find(ev => ev.event_type === 'ai_started');
       const humanStartedEv = sorted.find(ev => ev.event_type === 'human_started');
 
       // Contar atendimentos apenas por conversation_started dentro do range original
