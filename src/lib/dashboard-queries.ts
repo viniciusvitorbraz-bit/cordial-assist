@@ -74,7 +74,7 @@ export async function fetchDashboardMetrics(
   const { data: events, error } = await db
     .from('conversation_events')
     .select('id, conversation_id, event_type, created_at')
-    .in('event_type', ['conversation_started', 'ai_started', 'ai_finished', 'human_started'])
+    .in('event_type', ['conversation_started', 'ai_finished', 'human_started'])
     .gte('created_at', range.start)
     .lte('created_at', range.end)
     .order('created_at', { ascending: true });
