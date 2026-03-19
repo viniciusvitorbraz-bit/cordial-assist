@@ -70,7 +70,14 @@ export async function fetchDashboardMetrics(
   db: SupabaseClient,
   range: DateRange
 ): Promise<DashboardMetrics> {
-  // ── Query 1: eventos no período selecionado (para cards e volume/hora) ──
+  const rangeStartMs = new Date(range.start).getTime();
+  const rangeEndMs = new Date(range.end).getTime();
+  const isWithinRange = (createdAt: string) => {
+    const ts = new Date(createdAt).getTime();
+    return ts >= rangeStartMs && ts <= rangeEndMs;
+  };
+
+  // ── Query 1: eventos no período selecionado ──
   const { data: events, error } = await db
     .from('conversation_events')
     .select('id, conversation_id, event_type, created_at')
@@ -81,8 +88,26 @@ export async function fetchDashboardMetrics(
 
   if (error) throw new Error(error.message);
 
-  // Todos os eventos já estão no range, não precisa mais de backfilling
-  const allEvents = events ?? [];
+  const selectedEvents = events ?? [];
+
+  // ── Backfill: traz baseline histórico para conversas com atividade no período ──
+  const conversationIds = Array.from(new Set(selectedEvents.map((ev) => ev.conversation_id)));
+  let historicalEvents: typeof selectedEvents = [];
+
+  if (conversationIds.length > 0) {
+    const { data: historyData, error: historyError } = await db
+      .from('conversation_events')
+      .select('id, conversation_id, event_type, created_at')
+      .in('conversation_id', conversationIds)
+      .in('event_type', ['conversation_started', 'ai_finished'])
+      .lt('created_at', range.start)
+      .order('created_at', { ascending: true });
+
+    if (historyError) throw new Error(historyError.message);
+    historicalEvents = historyData ?? [];
+  }
+
+  const allEvents = [...historicalEvents, ...selectedEvents];
 
   // ── Query 2: últimos 7 dias (sempre, independente do filtro) ──
   const todayMidnight = getBrasiliaMidnightUTC();
@@ -99,17 +124,36 @@ export async function fetchDashboardMetrics(
 
   if (weeklyError) throw new Error(weeklyError.message);
 
-  // Helper: convert UTC timestamp to Brasília (UTC-3) Date
   const toBrasilia = (ts: number) => new Date(ts - 3 * 60 * 60 * 1000);
+  const findLatestBefore = (
+    items: typeof allEvents,
+    eventType: 'conversation_started' | 'ai_finished',
+    limitTs: number,
+  ) => {
+    for (let i = items.length - 1; i >= 0; i--) {
+      const item = items[i];
+      if (item.event_type !== eventType) continue;
+      if (new Date(item.created_at).getTime() <= limitTs) return item;
+    }
+    return null;
+  };
 
   // ── Processar dados do período selecionado ──
-  let totalAtendimentos = 0;
+  const startEventsInRange = selectedEvents.filter((ev) => ev.event_type === 'conversation_started');
+  const totalAtendimentos = startEventsInRange.length;
   const hourCounts = new Map<number, number>();
   const temposIA: number[] = [];
   const temposEspera: number[] = [];
   const temposTotal: number[] = [];
 
-  if (allEvents && allEvents.length > 0) {
+  for (const ev of startEventsInRange) {
+    const ts = new Date(ev.created_at).getTime();
+    const brasiliaDate = toBrasilia(ts);
+    const hour = brasiliaDate.getUTCHours();
+    hourCounts.set(hour, (hourCounts.get(hour) ?? 0) + 1);
+  }
+
+  if (allEvents.length > 0) {
     const byConversation = new Map<string, typeof allEvents>();
     for (const ev of allEvents) {
       const cid = ev.conversation_id;
@@ -120,46 +164,40 @@ export async function fetchDashboardMetrics(
     for (const [, evts] of byConversation) {
       const sorted = [...evts].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
 
-      const conversationStartedEv = sorted.find(ev => ev.event_type === 'conversation_started');
-      const humanStartedEv = sorted.find(ev => ev.event_type === 'human_started');
+      const firstAiFinishedInRange = sorted.find(
+        (ev) => ev.event_type === 'ai_finished' && isWithinRange(ev.created_at),
+      );
 
-      // Contar atendimentos apenas por conversation_started dentro do range original
-      if (conversationStartedEv && events?.some(e => e.id === conversationStartedEv.id)) {
-        totalAtendimentos++;
-        const ts = new Date(conversationStartedEv.created_at).getTime();
-        const brasiliaDate = toBrasilia(ts);
-        const hour = brasiliaDate.getUTCHours();
-        hourCounts.set(hour, (hourCounts.get(hour) ?? 0) + 1);
-      }
-
-      // Tempo IA: conversation_started até primeiro ai_finished
-      const aiFinishEvents = sorted.filter(ev => ev.event_type === 'ai_finished');
-
-      if (conversationStartedEv && aiFinishEvents.length > 0) {
-        const startTime = new Date(conversationStartedEv.created_at).getTime();
-        const firstFinish = aiFinishEvents[0];
-        const finishTime = new Date(firstFinish.created_at).getTime();
-        const diff = (finishTime - startTime) / 1000;
-        if (diff > 0) {
-          temposIA.push(diff);
+      if (firstAiFinishedInRange) {
+        const finishTime = new Date(firstAiFinishedInRange.created_at).getTime();
+        const baseline = findLatestBefore(sorted, 'conversation_started', finishTime);
+        if (baseline) {
+          const startTime = new Date(baseline.created_at).getTime();
+          const diff = (finishTime - startTime) / 1000;
+          if (diff > 0) temposIA.push(diff);
         }
       }
 
-      // Tempo espera humano: último ai_finished até primeiro human_started
-      if (humanStartedEv && aiFinishEvents.length > 0) {
-        const humanTime = new Date(humanStartedEv.created_at).getTime();
-        const lastAiFinish = aiFinishEvents[aiFinishEvents.length - 1];
-        const aiFinishTime = new Date(lastAiFinish.created_at).getTime();
-        const diff = (humanTime - aiFinishTime) / 1000;
-        if (diff > 0) temposEspera.push(diff);
-      }
+      const firstHumanStartedInRange = sorted.find(
+        (ev) => ev.event_type === 'human_started' && isWithinRange(ev.created_at),
+      );
 
-      // Tempo total: conversation_started até human_started
-      if (conversationStartedEv && humanStartedEv) {
-        const startTime = new Date(conversationStartedEv.created_at).getTime();
-        const humanTime = new Date(humanStartedEv.created_at).getTime();
-        const diff = (humanTime - startTime) / 1000;
-        if (diff > 0) temposTotal.push(diff);
+      if (firstHumanStartedInRange) {
+        const humanTime = new Date(firstHumanStartedInRange.created_at).getTime();
+
+        const lastAiFinishBeforeHuman = findLatestBefore(sorted, 'ai_finished', humanTime);
+        if (lastAiFinishBeforeHuman) {
+          const aiFinishTime = new Date(lastAiFinishBeforeHuman.created_at).getTime();
+          const diff = (humanTime - aiFinishTime) / 1000;
+          if (diff > 0) temposEspera.push(diff);
+        }
+
+        const lastConversationStartBeforeHuman = findLatestBefore(sorted, 'conversation_started', humanTime);
+        if (lastConversationStartBeforeHuman) {
+          const startTime = new Date(lastConversationStartBeforeHuman.created_at).getTime();
+          const diff = (humanTime - startTime) / 1000;
+          if (diff > 0) temposTotal.push(diff);
+        }
       }
     }
   }
@@ -196,11 +234,9 @@ export async function fetchDashboardMetrics(
     }
   }
 
-  // Gerar sempre 7 labels (mesmo com 0 atendimentos)
   const weeklyData: WeeklyDayData[] = [];
   for (let i = 6; i >= 0; i--) {
     const dayMs = todayMidnight.getTime() - i * 24 * 60 * 60 * 1000;
-    // Converter de volta para data Brasília para obter a dateKey
     const brasiliaDay = new Date(dayMs - 3 * 60 * 60 * 1000);
     const dateKey = brasiliaDay.toISOString().slice(0, 10);
     const d = new Date(dateKey + 'T12:00:00');
@@ -212,7 +248,6 @@ export async function fetchDashboardMetrics(
     });
   }
 
-  // Volume por hora
   const allHours = Array.from(hourCounts.keys());
   const minHour = allHours.length > 0 ? Math.min(0, ...allHours) : 8;
   const maxHour = allHours.length > 0 ? Math.max(23, ...allHours) : 18;
@@ -223,14 +258,12 @@ export async function fetchDashboardMetrics(
 
   const avg = (arr: number[]) => arr.length === 0 ? 0 : Math.round(arr.reduce((a, b) => a + b, 0) / arr.length);
 
-  // Horário de pico
   let horarioPico: string | null = null;
   if (volumePorHora.length > 0) {
     const peak = volumePorHora.reduce((max, cur) => cur.total > max.total ? cur : max, volumePorHora[0]);
     horarioPico = peak.hora;
   }
 
-  // Variação: período anterior de mesmo tamanho
   const rangeMs = new Date(range.end).getTime() - new Date(range.start).getTime();
   const prevStart = new Date(new Date(range.start).getTime() - rangeMs).toISOString();
   const prevEnd = range.start;
