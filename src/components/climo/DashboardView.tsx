@@ -155,38 +155,14 @@ export default function DashboardView() {
 
           <div className="bg-card border border-border rounded-2xl p-6 flex-1 flex flex-col justify-between">
             <div className="flex justify-between items-start">
-              <h3 className="text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground">Tempo Médio Conversa IA</h3>
-              <Timer className="w-5 h-5 text-primary" />
+              <h3 className="text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground">Horário de Pico</h3>
+              <Zap className="w-5 h-5 text-primary" />
             </div>
             <div className="my-4">
-              <span className="text-5xl font-light text-foreground tracking-tight">{formatSeconds(metrics?.tempoConversaIaSeg ?? 0)}</span>
+              <span className="text-5xl font-light text-foreground tracking-tight">{metrics?.horarioPico ?? '—'}</span>
+              <p className="text-xs text-muted-foreground font-light mt-2">Maior volume (Brasília)</p>
             </div>
           </div>
-        </div>
-      </div>
-
-      {/* Second Row */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-        <div className="bg-card border border-border rounded-2xl p-5">
-          <div className="flex justify-between items-start mb-3">
-            <h3 className="text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground">Espera Humano</h3>
-            <Clock className="w-4 h-4 text-primary/60" />
-          </div>
-          <span className="text-3xl font-light text-foreground tracking-tight">
-            {formatSeconds(metrics?.tempoEsperaHumanoSeg ?? 0)}
-          </span>
-          <p className="text-xs text-muted-foreground font-light mt-2">Tempo médio até atendente</p>
-        </div>
-
-        <div className="bg-card border border-border rounded-2xl p-5">
-          <div className="flex justify-between items-start mb-3">
-            <h3 className="text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground">Horário de Pico</h3>
-            <Zap className="w-4 h-4 text-primary/60" />
-          </div>
-          <span className="text-3xl font-light text-foreground tracking-tight">
-            {metrics?.horarioPico ?? '—'}
-          </span>
-          <p className="text-xs text-muted-foreground font-light mt-2">Maior volume (Brasília)</p>
         </div>
       </div>
 
