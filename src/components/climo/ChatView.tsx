@@ -110,27 +110,16 @@ export default function ChatView() {
     return data;
   }, [token, baseUrl]);
 
-  // --- OPTIMIZED: parallel fetch, instant first page, sessionStorage cache ---
+  // --- OPTIMIZED: sequential fetch, progressive display, cache ---
   const CACHE_KEY = `climo_convos_${accountId}`;
   const CACHE_TTL = 5 * 60 * 1000; // 5 min
-
-  const fetchPageWithRetry = useCallback(async (p: number, retries = 2): Promise<any> => {
-    for (let attempt = 1; attempt <= retries; attempt++) {
-      try {
-        return await callProxy(`/api/v1/accounts/${accountId}/conversations?page=${p}`);
-      } catch (err) {
-        if (attempt === retries) throw err;
-        await new Promise(r => setTimeout(r, 600 * attempt));
-      }
-    }
-  }, [accountId, callProxy]);
 
   const fetchConversations = useCallback(async () => {
     if (!connected) return;
     setError('');
     setUsingExampleData(false);
 
-    // 1) Show cache instantly while fetching fresh data
+    // 1) Show cache instantly
     try {
       const cached = sessionStorage.getItem(CACHE_KEY);
       if (cached) {
@@ -138,62 +127,51 @@ export default function ChatView() {
         if (Date.now() - ts < CACHE_TTL && cachedData?.length) {
           setConversations(cachedData);
           setLoading(false);
+          return; // Use cache, don't refetch
         }
       }
     } catch {}
 
-    setLoading(prev => conversations.length > 0 ? false : true);
+    setLoading(true);
 
     try {
-      // 2) Fetch first page to get total + show results fast
-      const firstData = await fetchPageWithRetry(1);
-      const firstPayload: Conversation[] = firstData.data?.payload || [];
-      const meta = firstData.data?.meta;
+      const allConversations: Conversation[] = [];
+      let page = 1;
+      let totalPages = Infinity;
 
-      if (firstPayload.length === 0) throw new Error('Nenhuma conversa carregada');
+      while (page <= totalPages) {
+        const data = await callProxy(`/api/v1/accounts/${accountId}/conversations?page=${page}`);
+        const payload: Conversation[] = data.data?.payload || [];
+        const meta = data.data?.meta;
 
-      // Show first page immediately
-      setConversations(firstPayload);
-      setLoading(false);
+        if (meta?.all_count && totalPages === Infinity) {
+          totalPages = Math.ceil(meta.all_count / 25);
+        }
 
-      // 3) If more pages, fetch them ALL in parallel
-      if (firstPayload.length >= 25 && meta?.all_count > 25) {
-        const totalPages = Math.ceil(meta.all_count / 25);
-        const pageNumbers = Array.from({ length: totalPages - 1 }, (_, i) => i + 2);
+        allConversations.push(...payload);
 
-        // Fetch in batches of 3 to avoid overwhelming the proxy
-        const BATCH = 3;
-        let allConversations = [...firstPayload];
-
-        for (let i = 0; i < pageNumbers.length; i += BATCH) {
-          const batch = pageNumbers.slice(i, i + BATCH);
-          const results = await Promise.allSettled(batch.map(p => fetchPageWithRetry(p)));
-
-          for (const r of results) {
-            if (r.status === 'fulfilled') {
-              const payload = r.value?.data?.payload || [];
-              allConversations.push(...payload);
-            }
-          }
-          // Update UI progressively after each batch
+        // Show results after first page
+        if (page === 1) {
+          setConversations([...allConversations]);
+          setLoading(false);
+        } else {
           setConversations([...allConversations]);
         }
 
-        // Cache final result
-        try {
-          sessionStorage.setItem(CACHE_KEY, JSON.stringify({ data: allConversations, ts: Date.now() }));
-        } catch {}
-      } else {
-        try {
-          sessionStorage.setItem(CACHE_KEY, JSON.stringify({ data: firstPayload, ts: Date.now() }));
-        } catch {}
+        if (payload.length < 25) break;
+        page++;
       }
+
+      if (allConversations.length === 0) throw new Error('Nenhuma conversa carregada');
+
+      try {
+        sessionStorage.setItem(CACHE_KEY, JSON.stringify({ data: allConversations, ts: Date.now() }));
+      } catch {}
     } catch (err: any) {
       let msg = err.message || 'Erro desconhecido';
       if (msg.includes('Failed to fetch') || msg.includes('FunctionsHttpError') || msg.includes('non-2xx') || msg.includes('dns error') || msg.includes('name resolution')) {
         msg = 'Erro de conexão com o servidor. Tente novamente em alguns segundos.';
       }
-      // Only show error if we have no cached data
       if (conversations.length === 0) {
         setError(msg);
         setConversations([]);
@@ -201,7 +179,7 @@ export default function ChatView() {
     } finally {
       setLoading(false);
     }
-  }, [connected, accountId, fetchPageWithRetry, CACHE_KEY, conversations.length]);
+  }, [connected, accountId, callProxy, CACHE_KEY, conversations.length]);
 
   const MSG_CACHE_TTL = 2 * 60 * 1000; // 2 min
 
