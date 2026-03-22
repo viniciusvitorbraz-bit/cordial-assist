@@ -203,14 +203,37 @@ export default function ChatView() {
     }
   }, [connected, accountId, fetchPageWithRetry, CACHE_KEY, conversations.length]);
 
-  const fetchMessages = useCallback(async (convoId: number) => {
+  const MSG_CACHE_TTL = 2 * 60 * 1000; // 2 min
+
+  const fetchMessages = useCallback(async (convoId: number, background = false) => {
     if (usingExampleData) return;
-    setLoadingMsgs(true);
+
+    // Show cached messages instantly
+    const cached = msgCacheRef.current.get(convoId);
+    if (cached && Date.now() - cached.ts < MSG_CACHE_TTL) {
+      setMessages(cached.msgs);
+      if (!background) {
+        // Still refresh in background
+        setLoadingMsgs(false);
+        callProxy(`/api/v1/accounts/${accountId}/conversations/${convoId}/messages`)
+          .then(data => {
+            const fresh = data.payload || [];
+            msgCacheRef.current.set(convoId, { msgs: fresh, ts: Date.now() });
+            setMessages(prev => prev.length !== fresh.length || JSON.stringify(prev.map(m => m.id)) !== JSON.stringify(fresh.map((m: Message) => m.id)) ? fresh : prev);
+          })
+          .catch(() => {});
+        return;
+      }
+    }
+
+    if (!background) setLoadingMsgs(true);
     try {
       const data = await callProxy(`/api/v1/accounts/${accountId}/conversations/${convoId}/messages`);
-      setMessages(data.payload || []);
+      const msgs = data.payload || [];
+      msgCacheRef.current.set(convoId, { msgs, ts: Date.now() });
+      setMessages(msgs);
     } catch {
-      setMessages([]);
+      if (!cached) setMessages([]);
     } finally {
       setLoadingMsgs(false);
     }
