@@ -76,6 +76,7 @@ export default function ChatView() {
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(false);
   const [loadingMsgs, setLoadingMsgs] = useState(false);
+  const msgCacheRef = useRef<Map<number, { msgs: Message[]; ts: number }>>(new Map());
   const [sending, setSending] = useState(false);
   const [error, setError] = useState('');
   const [showConfig, setShowConfig] = useState(false);
