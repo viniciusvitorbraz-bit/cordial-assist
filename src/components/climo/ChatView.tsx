@@ -109,65 +109,98 @@ export default function ChatView() {
     return data;
   }, [token, baseUrl]);
 
-  // Fetch ALL conversations with pagination + retry logic
+  // --- OPTIMIZED: parallel fetch, instant first page, sessionStorage cache ---
+  const CACHE_KEY = `climo_convos_${accountId}`;
+  const CACHE_TTL = 5 * 60 * 1000; // 5 min
+
+  const fetchPageWithRetry = useCallback(async (p: number, retries = 2): Promise<any> => {
+    for (let attempt = 1; attempt <= retries; attempt++) {
+      try {
+        return await callProxy(`/api/v1/accounts/${accountId}/conversations?page=${p}`);
+      } catch (err) {
+        if (attempt === retries) throw err;
+        await new Promise(r => setTimeout(r, 600 * attempt));
+      }
+    }
+  }, [accountId, callProxy]);
+
   const fetchConversations = useCallback(async () => {
     if (!connected) return;
-    setLoading(true);
     setError('');
     setUsingExampleData(false);
+
+    // 1) Show cache instantly while fetching fresh data
     try {
-      const allConversations: Conversation[] = [];
-      let page = 1;
-      let totalPages = Infinity;
-
-      const fetchPageWithRetry = async (p: number, retries = 3): Promise<any> => {
-        for (let attempt = 1; attempt <= retries; attempt++) {
-          try {
-            return await callProxy(`/api/v1/accounts/${accountId}/conversations?page=${p}`);
-          } catch (err) {
-            if (attempt === retries) throw err;
-            // Wait before retrying (exponential backoff)
-            await new Promise(r => setTimeout(r, 1000 * attempt));
-          }
-        }
-      };
-
-      while (page <= totalPages) {
-        try {
-          const data = await fetchPageWithRetry(page);
-          const payload = data.data?.payload || [];
-          const meta = data.data?.meta;
-          
-          if (meta?.all_count && totalPages === Infinity) {
-            totalPages = Math.ceil(meta.all_count / 25);
-          }
-
-          allConversations.push(...payload);
-          
-          if (payload.length < 25) break;
-          page++;
-        } catch (pageErr) {
-          console.warn(`Falha ao carregar página ${page}, usando dados parciais`, pageErr);
-          break; // Stop pagination but keep what we have
+      const cached = sessionStorage.getItem(CACHE_KEY);
+      if (cached) {
+        const { data: cachedData, ts } = JSON.parse(cached);
+        if (Date.now() - ts < CACHE_TTL && cachedData?.length) {
+          setConversations(cachedData);
+          setLoading(false);
         }
       }
+    } catch {}
 
-      if (allConversations.length > 0) {
-        setConversations(allConversations);
+    setLoading(prev => conversations.length > 0 ? false : true);
+
+    try {
+      // 2) Fetch first page to get total + show results fast
+      const firstData = await fetchPageWithRetry(1);
+      const firstPayload: Conversation[] = firstData.data?.payload || [];
+      const meta = firstData.data?.meta;
+
+      if (firstPayload.length === 0) throw new Error('Nenhuma conversa carregada');
+
+      // Show first page immediately
+      setConversations(firstPayload);
+      setLoading(false);
+
+      // 3) If more pages, fetch them ALL in parallel
+      if (firstPayload.length >= 25 && meta?.all_count > 25) {
+        const totalPages = Math.ceil(meta.all_count / 25);
+        const pageNumbers = Array.from({ length: totalPages - 1 }, (_, i) => i + 2);
+
+        // Fetch in batches of 5 to avoid overwhelming the proxy
+        const BATCH = 5;
+        let allConversations = [...firstPayload];
+
+        for (let i = 0; i < pageNumbers.length; i += BATCH) {
+          const batch = pageNumbers.slice(i, i + BATCH);
+          const results = await Promise.allSettled(batch.map(p => fetchPageWithRetry(p)));
+
+          for (const r of results) {
+            if (r.status === 'fulfilled') {
+              const payload = r.value?.data?.payload || [];
+              allConversations.push(...payload);
+            }
+          }
+          // Update UI progressively after each batch
+          setConversations([...allConversations]);
+        }
+
+        // Cache final result
+        try {
+          sessionStorage.setItem(CACHE_KEY, JSON.stringify({ data: allConversations, ts: Date.now() }));
+        } catch {}
       } else {
-        throw new Error('Nenhuma conversa carregada');
+        try {
+          sessionStorage.setItem(CACHE_KEY, JSON.stringify({ data: firstPayload, ts: Date.now() }));
+        } catch {}
       }
     } catch (err: any) {
       let msg = err.message || 'Erro desconhecido';
       if (msg.includes('Failed to fetch') || msg.includes('FunctionsHttpError') || msg.includes('non-2xx') || msg.includes('dns error') || msg.includes('name resolution')) {
         msg = 'Erro de conexão com o servidor. Tente novamente em alguns segundos.';
       }
-      setError(msg);
-      setConversations([]);
+      // Only show error if we have no cached data
+      if (conversations.length === 0) {
+        setError(msg);
+        setConversations([]);
+      }
     } finally {
       setLoading(false);
     }
-  }, [connected, accountId, callProxy]);
+  }, [connected, accountId, fetchPageWithRetry, CACHE_KEY, conversations.length]);
 
   const fetchMessages = useCallback(async (convoId: number) => {
     if (usingExampleData) return;
