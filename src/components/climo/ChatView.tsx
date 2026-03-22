@@ -160,8 +160,8 @@ export default function ChatView() {
         const totalPages = Math.ceil(meta.all_count / 25);
         const pageNumbers = Array.from({ length: totalPages - 1 }, (_, i) => i + 2);
 
-        // Fetch in batches of 5 to avoid overwhelming the proxy
-        const BATCH = 5;
+        // Fetch in batches of 3 to avoid overwhelming the proxy
+        const BATCH = 3;
         let allConversations = [...firstPayload];
 
         for (let i = 0; i < pageNumbers.length; i += BATCH) {
