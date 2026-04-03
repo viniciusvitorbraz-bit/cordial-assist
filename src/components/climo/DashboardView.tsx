@@ -183,14 +183,14 @@ export default function DashboardView() {
 
         <div className="bg-card border border-border rounded-2xl p-6 flex flex-col justify-between">
           <div className="flex justify-between items-start">
-            <h3 className="text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground">Tempo até Intervenção Humana</h3>
+            <h3 className="text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground"><h3 className="text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground">Tempo até Atendimento Humano</h3></h3>
             <Clock className="w-5 h-5 text-primary/60" />
           </div>
           <div className="my-4">
             <span className="text-4xl font-light text-foreground tracking-tight">
               {metrics?.tempoEsperaHumanoSeg ? formatSeconds(metrics.tempoEsperaHumanoSeg) : '—'}
             </span>
-            <p className="text-xs text-muted-foreground font-light mt-2">De ai_finished até human_started</p>
+            <p className="text-xs text-muted-foreground font-light mt-2"><p className="text-xs text-muted-foreground font-light mt-2">Do início da conversa até atendimento humano</p></p>
           </div>
         </div>
       </div>

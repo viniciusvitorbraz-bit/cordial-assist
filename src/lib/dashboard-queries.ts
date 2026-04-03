@@ -190,6 +190,14 @@ export async function fetchDashboardMetrics(
           const aiFinishTime = new Date(lastAiFinishBeforeHuman.created_at).getTime();
           const diff = (humanTime - aiFinishTime) / 1000;
           if (diff > 0) temposEspera.push(diff);
+        } else {
+          // Fallback: usa conversation_started quando não existe ai_finished
+          const lastStartBeforeHuman = findLatestBefore(sorted, 'conversation_started', humanTime);
+          if (lastStartBeforeHuman) {
+            const startTime = new Date(lastStartBeforeHuman.created_at).getTime();
+            const diff = (humanTime - startTime) / 1000;
+            if (diff > 0) temposEspera.push(diff);
+          }
         }
 
         const lastConversationStartBeforeHuman = findLatestBefore(sorted, 'conversation_started', humanTime);
