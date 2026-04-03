@@ -190,7 +190,7 @@ export default function DashboardView() {
             <span className="text-4xl font-light text-foreground tracking-tight">
               {metrics?.tempoEsperaHumanoSeg ? formatSeconds(metrics.tempoEsperaHumanoSeg) : '—'}
             </span>
-            <p className="text-xs text-muted-foreground font-light mt-2">De ai_finished até human_started</p>
+            <p className="text-xs text-muted-foreground font-light mt-2"><p className="text-xs text-muted-foreground font-light mt-2">Do início da conversa até atendimento humano</p></p>
           </div>
         </div>
       </div>
