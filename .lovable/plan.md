@@ -1,65 +1,64 @@
 
 
-## Plano: Status dinâmico do cliente baseado em `conversation_events`
+## Problema diagnosticado
 
-### Viabilidade
+A metrica "Tempo ate Intervencao Humana" retorna nulo porque a logica atual exige que exista um `ai_finished` **na mesma conversa** antes do `human_started`. Analisando os screenshots:
 
-Totalmente viavel. Os dados necessarios ja existem nas duas tabelas do banco externo:
+- A grande maioria dos `human_started` pertence a conversa `bfd0f107...` que **nunca** teve `ai_finished` nem `conversation_started` — e uma conversa puramente humana
+- As conversas com `ai_finished` (ex: `7d9aadd8...`) sao conversas diferentes que nao tem `human_started`
+- Resultado: zero pares validos `ai_finished → human_started` na mesma conversa = metrica nula
 
-- **`clientes_atendimento`**: tem o `telefone` do cliente
-- **`conversation_events`**: tem `conversation_id`, `event_type` e `created_at`
+## Solucao proposta
 
-O vinculo entre as tabelas e feito pelo `conversation_id` -- nos dados atuais, o telefone `18633314570` (Guilherme) corresponde a conversa `b7f7700a` que tem eventos `ai_started` e `ai_finished` registrados.
+Mudar a logica de fallback: quando nao existe `ai_finished` antes do `human_started` na mesma conversa, usar `conversation_started` como ponto de referencia. Se tambem nao existir `conversation_started`, ignorar.
 
-Porem, ha um ponto: a tabela `clientes_atendimento` nao tem o campo `conversation_id` diretamente. Olhando os dados, o `created_at` do cliente (00:24:24) e quase identico ao `conversation_started` da conversa `b7f7700a` (00:24:23). Precisamos de uma forma de vincular. As opcoes sao:
+Isso mede "tempo desde o inicio da conversa ate a intervencao humana" — que e uma metrica util mesmo quando a IA nao participa.
 
-1. A tabela `clientes_atendimento` ja tem ou pode ter o campo `conversation_id`
-2. Fazemos o match pelo telefone via a tabela `conversation_events` que tem campo `phone` (presente na tabela `ai_events` que tem estrutura similar)
+Alem disso, renomear o card para refletir melhor o significado: **"Tempo ate Atendimento Humano"** (em vez de "Intervencao Humana"), ja que inclui casos onde o humano atende diretamente.
 
-Vou verificar se `conversation_events` tem o campo `phone`.
+## Alteracoes
 
-### Logica de status
+**Arquivo: `src/lib/dashboard-queries.ts`** (linhas 185-201)
 
-Para cada cliente, buscar o ultimo evento da conversa associada:
-- Ultimo evento = `ai_started` → **Atendimento IA** (badge azul)
-- Ultimo evento = `ai_finished` → **Aguardando Humano** (badge amarelo)
-- Ultimo evento = `human_started` → **Finalizado** (badge verde)
-- Sem eventos → **--** (sem status)
-
-### Implementacao
-
-**Arquivo: `src/components/climo/ClientesView.tsx`**
-
-1. Apos buscar os clientes da tabela `clientes_atendimento`, fazer uma segunda query na tabela `conversation_events` buscando todos os eventos ordenados por `created_at desc`
-2. Para cada cliente, localizar a conversa correspondente (via `conversation_id` se disponivel no registro do cliente, ou via match de telefone/timestamp)
-3. Determinar o ultimo `event_type` relevante (`ai_started`, `ai_finished`, `human_started`) dessa conversa
-4. Mapear para o label e cor do badge de status
-5. Substituir o campo `status` estatico pelo status calculado dinamicamente
-
-### Ponto de atencao
-
-Preciso confirmar como vincular `clientes_atendimento` a `conversation_events`. Se a tabela `clientes_atendimento` tiver um campo `conversation_id`, o vinculo e direto. Caso contrario, podemos usar o `phone` presente em `conversation_events` para fazer o match pelo telefone do cliente. Se nenhum dos dois existir, podemos fazer match por proximidade de timestamp (menos confiavel).
-
-### Detalhes tecnicos
+Na secao que calcula `temposEspera`, adicionar fallback:
 
 ```text
-Query 1: clientes_atendimento
-  SELECT id, telefone, nome, status, created_at, conversation_id (se existir)
-
-Query 2: conversation_events
-  SELECT conversation_id, event_type, created_at
-  WHERE event_type IN ('ai_started', 'ai_finished', 'human_started')
-  ORDER BY created_at DESC
-
-Mapeamento de status:
-  ai_started     → "Atendimento IA"      (bg-blue-500/10, text-blue-500)
-  ai_finished    → "Aguardando Humano"    (bg-yellow-500/10, text-yellow-600)
-  human_started  → "Finalizado"           (bg-green-500/10, text-green-600)
-
-Vinculo: por conversation_id ou phone no conversation_events
+Para cada conversa com human_started no periodo:
+  1. Buscar ai_finished anterior → calcular diff (como ja faz)
+  2. Se nao encontrar ai_finished, buscar conversation_started anterior → calcular diff
+  3. Se nenhum dos dois existir, pular
 ```
 
-### Proxima etapa
+**Arquivo: `src/components/climo/DashboardView.tsx`**
 
-Antes de implementar, preciso confirmar: a tabela `clientes_atendimento` possui o campo `conversation_id`? Ou o `conversation_events` tem o campo `phone`? Isso define a estrategia de vinculacao.
+Renomear o label do card de "Tempo até Intervenção Humana" para "Tempo até Atendimento Humano" e a descricao para "Do início da conversa até atendimento humano".
+
+## Detalhes tecnicos
+
+```text
+// dashboard-queries.ts, dentro do loop por conversa (~linha 185)
+
+if (firstHumanStartedInRange) {
+  const humanTime = new Date(firstHumanStartedInRange.created_at).getTime();
+
+  // Tenta ai_finished primeiro
+  const lastAiFinish = findLatestBefore(sorted, 'ai_finished', humanTime);
+  
+  if (lastAiFinish) {
+    const diff = (humanTime - new Date(lastAiFinish.created_at).getTime()) / 1000;
+    if (diff > 0) temposEspera.push(diff);
+  } else {
+    // Fallback: usa conversation_started
+    const lastStart = findLatestBefore(sorted, 'conversation_started', humanTime);
+    if (lastStart) {
+      const diff = (humanTime - new Date(lastStart.created_at).getTime()) / 1000;
+      if (diff > 0) temposEspera.push(diff);
+    }
+  }
+  
+  // temposTotal continua igual
+}
+```
+
+Tambem precisa garantir que o backfill historico (linha 102) inclua `human_started` conversations que so tem `conversation_started` fora do range — ja esta coberto pois o backfill busca `conversation_started` para todas as conversations com eventos no periodo.
 
