@@ -264,7 +264,7 @@ export async function fetchDashboardMetrics(
     volumePorHora.push({ hora: `${String(h).padStart(2, '0')}h`, total: hourCounts.get(h) ?? 0 });
   }
 
-  const avg = (arr: number[]) => arr.length === 0 ? 0 : Math.round(arr.reduce((a, b) => a + b, 0) / arr.length);
+  const avg = (arr: number[]) => arr.length === 0 ? 0 : arr.reduce((a, b) => a + b, 0) / arr.length;
 
   let horarioPico: string | null = null;
   if (volumePorHora.length > 0) {
