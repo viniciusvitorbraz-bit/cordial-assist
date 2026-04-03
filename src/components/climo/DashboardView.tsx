@@ -7,9 +7,12 @@ import { createDynamicSupabaseClient } from '@/lib/supabase-config';
 import { type DateRangeKey, getDateRange, fetchDashboardMetrics, type DashboardMetrics } from '@/lib/dashboard-queries';
 
 function formatSeconds(seg: number): string {
-  if (!seg) return '0m 00s';
-  const m = Math.floor(seg / 60);
-  const s = seg % 60;
+  if (!Number.isFinite(seg)) return '—';
+  if (seg < 1) return `${seg.toFixed(1)}s`;
+  if (seg < 60) return `${seg < 10 ? seg.toFixed(1) : Math.round(seg)}s`;
+  const totalSeconds = Math.round(seg);
+  const m = Math.floor(totalSeconds / 60);
+  const s = totalSeconds % 60;
   return `${m}m ${String(s).padStart(2, '0')}s`;
 }
 
@@ -175,7 +178,7 @@ export default function DashboardView() {
           </div>
           <div className="my-4">
             <span className="text-4xl font-light text-foreground tracking-tight">
-              {metrics?.tempoConversaIaSeg ? formatSeconds(metrics.tempoConversaIaSeg) : '—'}
+              {metrics ? formatSeconds(metrics.tempoConversaIaSeg) : '—'}
             </span>
             <p className="text-xs text-muted-foreground font-light mt-2">Do início da conversa até ai_finished</p>
           </div>
@@ -183,14 +186,14 @@ export default function DashboardView() {
 
         <div className="bg-card border border-border rounded-2xl p-6 flex flex-col justify-between">
           <div className="flex justify-between items-start">
-            <h3 className="text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground"><h3 className="text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground">Tempo até Atendimento Humano</h3></h3>
+            <h3 className="text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground">Tempo até Atendimento Humano</h3>
             <Clock className="w-5 h-5 text-primary/60" />
           </div>
           <div className="my-4">
             <span className="text-4xl font-light text-foreground tracking-tight">
-              {metrics?.tempoEsperaHumanoSeg ? formatSeconds(metrics.tempoEsperaHumanoSeg) : '—'}
+              {metrics ? formatSeconds(metrics.tempoEsperaHumanoSeg) : '—'}
             </span>
-            <p className="text-xs text-muted-foreground font-light mt-2"><p className="text-xs text-muted-foreground font-light mt-2">Do início da conversa até atendimento humano</p></p>
+            <p className="text-xs text-muted-foreground font-light mt-2">Do início da conversa até atendimento humano</p>
           </div>
         </div>
       </div>
