@@ -7,9 +7,12 @@ import { createDynamicSupabaseClient } from '@/lib/supabase-config';
 import { type DateRangeKey, getDateRange, fetchDashboardMetrics, type DashboardMetrics } from '@/lib/dashboard-queries';
 
 function formatSeconds(seg: number): string {
-  if (!seg) return '0m 00s';
-  const m = Math.floor(seg / 60);
-  const s = seg % 60;
+  if (!Number.isFinite(seg)) return '—';
+  if (seg < 1) return `${seg.toFixed(1)}s`;
+  if (seg < 60) return `${seg < 10 ? seg.toFixed(1) : Math.round(seg)}s`;
+  const totalSeconds = Math.round(seg);
+  const m = Math.floor(totalSeconds / 60);
+  const s = totalSeconds % 60;
   return `${m}m ${String(s).padStart(2, '0')}s`;
 }
 
