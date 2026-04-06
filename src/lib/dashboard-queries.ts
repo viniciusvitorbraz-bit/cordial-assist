@@ -180,28 +180,51 @@ export async function fetchDashboardMetrics(
         }
       }
 
-      const firstHumanStartedInRange = sorted.find(
+      // Iterate ALL human_started in range to find the first valid pair (> 5s)
+      const humanStartedInRange = sorted.filter(
         (ev) => ev.event_type === 'human_started' && isWithinRange(ev.created_at),
       );
 
-      if (firstHumanStartedInRange) {
-        const humanTime = new Date(firstHumanStartedInRange.created_at).getTime();
+      let foundValidEspera = false;
+      for (const hsEvent of humanStartedInRange) {
+        const humanTime = new Date(hsEvent.created_at).getTime();
 
         const lastAiFinishBeforeHuman = findLatestBefore(sorted, 'ai_finished', humanTime);
         if (lastAiFinishBeforeHuman) {
           const aiFinishTime = new Date(lastAiFinishBeforeHuman.created_at).getTime();
           const diff = (humanTime - aiFinishTime) / 1000;
-          if (diff > 5) temposEspera.push(diff); // min 5s to filter webhook noise
+          if (diff > 5) {
+            temposEspera.push(diff);
+            foundValidEspera = true;
+            break; // one valid pair per conversation
+          }
         } else {
-          // Fallback: usa conversation_started quando não existe ai_finished
           const lastStartBeforeHuman = findLatestBefore(sorted, 'conversation_started', humanTime);
           if (lastStartBeforeHuman) {
             const startTime = new Date(lastStartBeforeHuman.created_at).getTime();
             const diff = (humanTime - startTime) / 1000;
-            if (diff > 5) temposEspera.push(diff); // min 5s to filter webhook noise
+            if (diff > 5) {
+              temposEspera.push(diff);
+              foundValidEspera = true;
+              break;
+            }
           }
         }
+      }
 
+      // Tempo total: use first human_started with valid pair
+      const firstValidHuman = humanStartedInRange.find((ev) => {
+        const humanTime = new Date(ev.created_at).getTime();
+        const lastStart = findLatestBefore(sorted, 'conversation_started', humanTime);
+        if (lastStart) {
+          const diff = (humanTime - new Date(lastStart.created_at).getTime()) / 1000;
+          return diff > 0;
+        }
+        return false;
+      });
+
+      if (firstValidHuman) {
+        const humanTime = new Date(firstValidHuman.created_at).getTime();
         const lastConversationStartBeforeHuman = findLatestBefore(sorted, 'conversation_started', humanTime);
         if (lastConversationStartBeforeHuman) {
           const startTime = new Date(lastConversationStartBeforeHuman.created_at).getTime();
