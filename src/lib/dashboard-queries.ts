@@ -180,7 +180,7 @@ export async function fetchDashboardMetrics(
         }
       }
 
-      // Tempo até Atendimento Humano: primeiro conversation_started → primeiro human_started válido (>5s)
+      // Tempo até Atendimento Humano: média de todos os human_started válidos no período
       const firstConversationStart = sorted.find((ev) => ev.event_type === 'conversation_started');
       const humanStartedEventsInRange = sorted.filter(
         (ev) => ev.event_type === 'human_started' && isWithinRange(ev.created_at),
@@ -188,29 +188,13 @@ export async function fetchDashboardMetrics(
 
       if (firstConversationStart && humanStartedEventsInRange.length > 0) {
         const startTime = new Date(firstConversationStart.created_at).getTime();
-        
-        // Encontrar o primeiro human_started que passe o filtro de ruído (>5s)
-        const validHuman = humanStartedEventsInRange.find((ev) => {
-          const diff = (new Date(ev.created_at).getTime() - startTime) / 1000;
-          return diff > 5;
-        });
 
-        if (validHuman) {
-          const diff = (new Date(validHuman.created_at).getTime() - startTime) / 1000;
-          temposEspera.push(diff);
-        }
-      }
-
-      // Tempo total: mesmo par válido
-      if (firstConversationStart && humanStartedEventsInRange.length > 0) {
-        const startTime = new Date(firstConversationStart.created_at).getTime();
-        const validHuman = humanStartedEventsInRange.find((ev) => {
-          const diff = (new Date(ev.created_at).getTime() - startTime) / 1000;
-          return diff > 5;
-        });
-        if (validHuman) {
-          const diff = (new Date(validHuman.created_at).getTime() - startTime) / 1000;
-          temposTotal.push(diff);
+        for (const humanEvent of humanStartedEventsInRange) {
+          const diff = (new Date(humanEvent.created_at).getTime() - startTime) / 1000;
+          if (diff > 5) {
+            temposEspera.push(diff);
+            temposTotal.push(diff);
+          }
         }
       }
     }
