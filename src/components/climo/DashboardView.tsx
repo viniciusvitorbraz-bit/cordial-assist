@@ -180,7 +180,7 @@ export default function DashboardView() {
             <span className="text-4xl font-light text-foreground tracking-tight">
               {metrics ? formatSeconds(metrics.tempoConversaIaSeg) : '—'}
             </span>
-            <p className="text-xs text-muted-foreground font-light mt-2">Do ai_started até ai_finished (fallback: conversation_started)</p>
+            <p className="text-xs text-muted-foreground font-light mt-2">Tempo médio de processamento da IA por conversa</p>
           </div>
         </div>
 
