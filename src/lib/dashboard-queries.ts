@@ -180,27 +180,38 @@ export async function fetchDashboardMetrics(
         }
       }
 
-      // Tempo até Atendimento Humano: primeiro conversation_started → primeiro human_started
+      // Tempo até Atendimento Humano: primeiro conversation_started → primeiro human_started válido (>5s)
       const firstConversationStart = sorted.find((ev) => ev.event_type === 'conversation_started');
-      const firstHumanStartedInRange = sorted.find(
+      const humanStartedEventsInRange = sorted.filter(
         (ev) => ev.event_type === 'human_started' && isWithinRange(ev.created_at),
       );
 
-      if (firstConversationStart && firstHumanStartedInRange) {
+      if (firstConversationStart && humanStartedEventsInRange.length > 0) {
         const startTime = new Date(firstConversationStart.created_at).getTime();
-        const humanTime = new Date(firstHumanStartedInRange.created_at).getTime();
-        const diff = (humanTime - startTime) / 1000;
-        if (diff > 5) {
+        
+        // Encontrar o primeiro human_started que passe o filtro de ruído (>5s)
+        const validHuman = humanStartedEventsInRange.find((ev) => {
+          const diff = (new Date(ev.created_at).getTime() - startTime) / 1000;
+          return diff > 5;
+        });
+
+        if (validHuman) {
+          const diff = (new Date(validHuman.created_at).getTime() - startTime) / 1000;
           temposEspera.push(diff);
         }
       }
 
-      // Tempo total: primeiro conversation_started → primeiro human_started
-      if (firstConversationStart && firstHumanStartedInRange) {
+      // Tempo total: mesmo par válido
+      if (firstConversationStart && humanStartedEventsInRange.length > 0) {
         const startTime = new Date(firstConversationStart.created_at).getTime();
-        const humanTime = new Date(firstHumanStartedInRange.created_at).getTime();
-        const diff = (humanTime - startTime) / 1000;
-        if (diff > 0) temposTotal.push(diff);
+        const validHuman = humanStartedEventsInRange.find((ev) => {
+          const diff = (new Date(ev.created_at).getTime() - startTime) / 1000;
+          return diff > 5;
+        });
+        if (validHuman) {
+          const diff = (new Date(validHuman.created_at).getTime() - startTime) / 1000;
+          temposTotal.push(diff);
+        }
       }
     }
   }
