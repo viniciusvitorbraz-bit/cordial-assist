@@ -1,64 +1,63 @@
 
 
-## Problema diagnosticado
+# Melhorar o fluxo de eventos e métricas do Dashboard
 
-A metrica "Tempo ate Intervencao Humana" retorna nulo porque a logica atual exige que exista um `ai_finished` **na mesma conversa** antes do `human_started`. Analisando os screenshots:
+## Situação atual
 
-- A grande maioria dos `human_started` pertence a conversa `bfd0f107...` que **nunca** teve `ai_finished` nem `conversation_started` — e uma conversa puramente humana
-- As conversas com `ai_finished` (ex: `7d9aadd8...`) sao conversas diferentes que nao tem `human_started`
-- Resultado: zero pares validos `ai_finished → human_started` na mesma conversa = metrica nula
+O dashboard consulta a tabela `conversation_events` no Supabase externo (`kolfmrmwekxtibwhlbaz`). Os event types usados são: `conversation_started`, `ai_finished`, `human_started`. O código **não usa `ai_started`** — ele calcula o tempo da IA como `ai_finished - conversation_started`.
 
-## Solucao proposta
+O problema principal: muitas conversas não seguem o fluxo completo, resultando em métricas nulas ou distorcidas.
 
-Mudar a logica de fallback: quando nao existe `ai_finished` antes do `human_started` na mesma conversa, usar `conversation_started` como ponto de referencia. Se tambem nao existir `conversation_started`, ignorar.
-
-Isso mede "tempo desde o inicio da conversa ate a intervencao humana" — que e uma metrica util mesmo quando a IA nao participa.
-
-Alem disso, renomear o card para refletir melhor o significado: **"Tempo ate Atendimento Humano"** (em vez de "Intervencao Humana"), ja que inclui casos onde o humano atende diretamente.
-
-## Alteracoes
-
-**Arquivo: `src/lib/dashboard-queries.ts`** (linhas 185-201)
-
-Na secao que calcula `temposEspera`, adicionar fallback:
+## Fluxo ideal proposto
 
 ```text
-Para cada conversa com human_started no periodo:
-  1. Buscar ai_finished anterior → calcular diff (como ja faz)
-  2. Se nao encontrar ai_finished, buscar conversation_started anterior → calcular diff
-  3. Se nenhum dos dois existir, pular
+conversation_started → ai_started → ai_finished → human_started
+       │                    │             │              │
+       │                    │             │              └─ Agente humano assume
+       │                    │             └─ IA terminou de responder
+       │                    └─ IA começou a processar
+       └─ Cliente iniciou conversa
 ```
 
-**Arquivo: `src/components/climo/DashboardView.tsx`**
+## O que precisa mudar
 
-Renomear o label do card de "Tempo até Intervenção Humana" para "Tempo até Atendimento Humano" e a descricao para "Do início da conversa até atendimento humano".
+### 1. No n8n: adicionar o evento `ai_started`
 
-## Detalhes tecnicos
+Você precisa criar um node no n8n que dispare um INSERT na `conversation_events` com `event_type = 'ai_started'` no momento em que a IA começa a processar a mensagem. Isso permite calcular:
 
-```text
-// dashboard-queries.ts, dentro do loop por conversa (~linha 185)
+- **Tempo de resposta da IA** = `ai_finished - ai_started` (tempo real de processamento)
+- **Tempo até a IA começar** = `ai_started - conversation_started` (latência inicial)
 
-if (firstHumanStartedInRange) {
-  const humanTime = new Date(firstHumanStartedInRange.created_at).getTime();
+### 2. No código: usar `ai_started` nas métricas
 
-  // Tenta ai_finished primeiro
-  const lastAiFinish = findLatestBefore(sorted, 'ai_finished', humanTime);
-  
-  if (lastAiFinish) {
-    const diff = (humanTime - new Date(lastAiFinish.created_at).getTime()) / 1000;
-    if (diff > 0) temposEspera.push(diff);
-  } else {
-    // Fallback: usa conversation_started
-    const lastStart = findLatestBefore(sorted, 'conversation_started', humanTime);
-    if (lastStart) {
-      const diff = (humanTime - new Date(lastStart.created_at).getTime()) / 1000;
-      if (diff > 0) temposEspera.push(diff);
-    }
-  }
-  
-  // temposTotal continua igual
-}
-```
+**Arquivo: `src/lib/dashboard-queries.ts`**
 
-Tambem precisa garantir que o backfill historico (linha 102) inclua `human_started` conversations que so tem `conversation_started` fora do range — ja esta coberto pois o backfill busca `conversation_started` para todas as conversations com eventos no periodo.
+- Incluir `ai_started` na lista de event types das queries (linhas 84 e 102)
+- Calcular `temposIA` como `ai_finished - ai_started` em vez de `ai_finished - conversation_started`
+- Manter o fallback: se não existir `ai_started`, usar `conversation_started` como baseline (compatibilidade com dados antigos)
+
+### 3. Adicionar validação de sequência
+
+Para evitar dados inconsistentes (ex: `human_started` antes de `conversation_started`), adicionar checagem de que os timestamps seguem a ordem esperada. Se um evento estiver fora de ordem, ignorar esse par no cálculo.
+
+### 4. Filtro de ruído de webhook
+
+Adicionar threshold mínimo de 5 segundos para a métrica "Tempo até Atendimento Humano". Diffs menores que isso são artefatos de webhook (disparo simultâneo) e não representam espera real.
+
+## Resumo das alterações no código
+
+**`src/lib/dashboard-queries.ts`:**
+- Adicionar `ai_started` às queries de eventos
+- Mudar cálculo de tempo da IA: `ai_finished - ai_started` (com fallback para `conversation_started`)
+- Adicionar filtro mínimo de 5s para `temposEspera`
+- Retornar `NaN` quando não há dados (em vez de 0)
+
+**`src/components/climo/DashboardView.tsx`:**
+- Tratar `NaN` mostrando "Sem dados" no card
+
+## O que você precisa fazer no n8n
+
+1. Adicionar um node que insere `ai_started` na `conversation_events` quando a IA começa a processar
+2. Garantir que a ordem de disparo dos nodes seja: `conversation_started` → `ai_started` → `ai_finished` → `human_started`
+3. O `human_started` só deve ser disparado quando um agente humano de fato assume a conversa (não quando o webhook do Chatwoot simplesmente cria a conversa)
 
