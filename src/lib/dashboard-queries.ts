@@ -195,25 +195,12 @@ export async function fetchDashboardMetrics(
         }
       }
 
-      // Tempo total: use first human_started with valid pair
-      const firstValidHuman = humanStartedInRange.find((ev) => {
-        const humanTime = new Date(ev.created_at).getTime();
-        const lastStart = findLatestBefore(sorted, 'conversation_started', humanTime);
-        if (lastStart) {
-          const diff = (humanTime - new Date(lastStart.created_at).getTime()) / 1000;
-          return diff > 0;
-        }
-        return false;
-      });
-
-      if (firstValidHuman) {
-        const humanTime = new Date(firstValidHuman.created_at).getTime();
-        const lastConversationStartBeforeHuman = findLatestBefore(sorted, 'conversation_started', humanTime);
-        if (lastConversationStartBeforeHuman) {
-          const startTime = new Date(lastConversationStartBeforeHuman.created_at).getTime();
-          const diff = (humanTime - startTime) / 1000;
-          if (diff > 0) temposTotal.push(diff);
-        }
+      // Tempo total: primeiro conversation_started → primeiro human_started
+      if (firstConversationStart && firstHumanStartedInRange) {
+        const startTime = new Date(firstConversationStart.created_at).getTime();
+        const humanTime = new Date(firstHumanStartedInRange.created_at).getTime();
+        const diff = (humanTime - startTime) / 1000;
+        if (diff > 0) temposTotal.push(diff);
       }
     }
   }
