@@ -180,34 +180,20 @@ export async function fetchDashboardMetrics(
         }
       }
 
-      // Iterate ALL human_started in range to find the first valid pair (> 5s)
+      // Tempo até Atendimento Humano: conversation_started → human_started
       const humanStartedInRange = sorted.filter(
         (ev) => ev.event_type === 'human_started' && isWithinRange(ev.created_at),
       );
 
-      let foundValidEspera = false;
       for (const hsEvent of humanStartedInRange) {
         const humanTime = new Date(hsEvent.created_at).getTime();
-
-        const lastAiFinishBeforeHuman = findLatestBefore(sorted, 'ai_finished', humanTime);
-        if (lastAiFinishBeforeHuman) {
-          const aiFinishTime = new Date(lastAiFinishBeforeHuman.created_at).getTime();
-          const diff = (humanTime - aiFinishTime) / 1000;
+        const lastStart = findLatestBefore(sorted, 'conversation_started', humanTime);
+        if (lastStart) {
+          const startTime = new Date(lastStart.created_at).getTime();
+          const diff = (humanTime - startTime) / 1000;
           if (diff > 5) {
             temposEspera.push(diff);
-            foundValidEspera = true;
             break; // one valid pair per conversation
-          }
-        } else {
-          const lastStartBeforeHuman = findLatestBefore(sorted, 'conversation_started', humanTime);
-          if (lastStartBeforeHuman) {
-            const startTime = new Date(lastStartBeforeHuman.created_at).getTime();
-            const diff = (humanTime - startTime) / 1000;
-            if (diff > 5) {
-              temposEspera.push(diff);
-              foundValidEspera = true;
-              break;
-            }
           }
         }
       }
