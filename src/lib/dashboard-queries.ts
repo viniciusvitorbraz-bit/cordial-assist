@@ -180,21 +180,18 @@ export async function fetchDashboardMetrics(
         }
       }
 
-      // Tempo até Atendimento Humano: conversation_started → human_started
-      const humanStartedInRange = sorted.filter(
+      // Tempo até Atendimento Humano: primeiro conversation_started → primeiro human_started
+      const firstConversationStart = sorted.find((ev) => ev.event_type === 'conversation_started');
+      const firstHumanStartedInRange = sorted.find(
         (ev) => ev.event_type === 'human_started' && isWithinRange(ev.created_at),
       );
 
-      for (const hsEvent of humanStartedInRange) {
-        const humanTime = new Date(hsEvent.created_at).getTime();
-        const lastStart = findLatestBefore(sorted, 'conversation_started', humanTime);
-        if (lastStart) {
-          const startTime = new Date(lastStart.created_at).getTime();
-          const diff = (humanTime - startTime) / 1000;
-          if (diff > 5) {
-            temposEspera.push(diff);
-            break; // one valid pair per conversation
-          }
+      if (firstConversationStart && firstHumanStartedInRange) {
+        const startTime = new Date(firstConversationStart.created_at).getTime();
+        const humanTime = new Date(firstHumanStartedInRange.created_at).getTime();
+        const diff = (humanTime - startTime) / 1000;
+        if (diff > 5) {
+          temposEspera.push(diff);
         }
       }
 
