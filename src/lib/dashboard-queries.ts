@@ -180,7 +180,7 @@ export async function fetchDashboardMetrics(
         }
       }
 
-      // Tempo até Atendimento Humano: média de todos os human_started válidos no período
+      // Tempo até Atendimento Humano: primeiro human_started válido (>5s) por conversa
       const firstConversationStart = sorted.find((ev) => ev.event_type === 'conversation_started');
       const humanStartedEventsInRange = sorted.filter(
         (ev) => ev.event_type === 'human_started' && isWithinRange(ev.created_at),
@@ -189,12 +189,15 @@ export async function fetchDashboardMetrics(
       if (firstConversationStart && humanStartedEventsInRange.length > 0) {
         const startTime = new Date(firstConversationStart.created_at).getTime();
 
-        for (const humanEvent of humanStartedEventsInRange) {
-          const diff = (new Date(humanEvent.created_at).getTime() - startTime) / 1000;
-          if (diff > 5) {
-            temposEspera.push(diff);
-            temposTotal.push(diff);
-          }
+        const firstValid = humanStartedEventsInRange.find((ev) => {
+          const diff = (new Date(ev.created_at).getTime() - startTime) / 1000;
+          return diff > 5;
+        });
+
+        if (firstValid) {
+          const diff = (new Date(firstValid.created_at).getTime() - startTime) / 1000;
+          temposEspera.push(diff);
+          temposTotal.push(diff);
         }
       }
     }
