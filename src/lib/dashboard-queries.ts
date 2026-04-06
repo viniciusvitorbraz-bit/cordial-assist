@@ -81,7 +81,7 @@ export async function fetchDashboardMetrics(
   const { data: events, error } = await db
     .from('conversation_events')
     .select('id, conversation_id, event_type, created_at')
-    .in('event_type', ['conversation_started', 'ai_finished', 'human_started'])
+    .in('event_type', ['conversation_started', 'ai_started', 'ai_finished', 'human_started'])
     .gte('created_at', range.start)
     .lte('created_at', range.end)
     .order('created_at', { ascending: true });
@@ -99,7 +99,7 @@ export async function fetchDashboardMetrics(
       .from('conversation_events')
       .select('id, conversation_id, event_type, created_at')
       .in('conversation_id', conversationIds)
-      .in('event_type', ['conversation_started', 'ai_finished'])
+      .in('event_type', ['conversation_started', 'ai_started', 'ai_finished'])
       .lt('created_at', range.start)
       .order('created_at', { ascending: true });
 
@@ -127,7 +127,7 @@ export async function fetchDashboardMetrics(
   const toBrasilia = (ts: number) => new Date(ts - 3 * 60 * 60 * 1000);
   const findLatestBefore = (
     items: typeof allEvents,
-    eventType: 'conversation_started' | 'ai_finished',
+    eventType: 'conversation_started' | 'ai_started' | 'ai_finished',
     limitTs: number,
   ) => {
     for (let i = items.length - 1; i >= 0; i--) {
@@ -170,7 +170,9 @@ export async function fetchDashboardMetrics(
 
       if (firstAiFinishedInRange) {
         const finishTime = new Date(firstAiFinishedInRange.created_at).getTime();
-        const baseline = findLatestBefore(sorted, 'conversation_started', finishTime);
+        // Prefer ai_started as baseline; fallback to conversation_started
+        const aiStartBaseline = findLatestBefore(sorted, 'ai_started', finishTime);
+        const baseline = aiStartBaseline ?? findLatestBefore(sorted, 'conversation_started', finishTime);
         if (baseline) {
           const startTime = new Date(baseline.created_at).getTime();
           const diff = (finishTime - startTime) / 1000;
@@ -189,14 +191,14 @@ export async function fetchDashboardMetrics(
         if (lastAiFinishBeforeHuman) {
           const aiFinishTime = new Date(lastAiFinishBeforeHuman.created_at).getTime();
           const diff = (humanTime - aiFinishTime) / 1000;
-          if (diff > 0) temposEspera.push(diff);
+          if (diff > 5) temposEspera.push(diff); // min 5s to filter webhook noise
         } else {
           // Fallback: usa conversation_started quando não existe ai_finished
           const lastStartBeforeHuman = findLatestBefore(sorted, 'conversation_started', humanTime);
           if (lastStartBeforeHuman) {
             const startTime = new Date(lastStartBeforeHuman.created_at).getTime();
             const diff = (humanTime - startTime) / 1000;
-            if (diff > 0) temposEspera.push(diff);
+            if (diff > 5) temposEspera.push(diff); // min 5s to filter webhook noise
           }
         }
 
@@ -264,7 +266,7 @@ export async function fetchDashboardMetrics(
     volumePorHora.push({ hora: `${String(h).padStart(2, '0')}h`, total: hourCounts.get(h) ?? 0 });
   }
 
-  const avg = (arr: number[]) => arr.length === 0 ? 0 : arr.reduce((a, b) => a + b, 0) / arr.length;
+  const avg = (arr: number[]) => arr.length === 0 ? NaN : arr.reduce((a, b) => a + b, 0) / arr.length;
 
   let horarioPico: string | null = null;
   if (volumePorHora.length > 0) {

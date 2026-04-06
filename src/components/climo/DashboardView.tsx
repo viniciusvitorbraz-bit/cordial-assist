@@ -7,7 +7,7 @@ import { createDynamicSupabaseClient } from '@/lib/supabase-config';
 import { type DateRangeKey, getDateRange, fetchDashboardMetrics, type DashboardMetrics } from '@/lib/dashboard-queries';
 
 function formatSeconds(seg: number): string {
-  if (!Number.isFinite(seg)) return '—';
+  if (!Number.isFinite(seg)) return 'Sem dados';
   if (seg < 1) return `${seg.toFixed(1)}s`;
   if (seg < 60) return `${seg < 10 ? seg.toFixed(1) : Math.round(seg)}s`;
   const totalSeconds = Math.round(seg);
@@ -180,7 +180,7 @@ export default function DashboardView() {
             <span className="text-4xl font-light text-foreground tracking-tight">
               {metrics ? formatSeconds(metrics.tempoConversaIaSeg) : '—'}
             </span>
-            <p className="text-xs text-muted-foreground font-light mt-2">Do início da conversa até ai_finished</p>
+            <p className="text-xs text-muted-foreground font-light mt-2">Do ai_started até ai_finished (fallback: conversation_started)</p>
           </div>
         </div>
 
