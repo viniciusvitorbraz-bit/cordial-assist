@@ -219,7 +219,7 @@ export default function DashboardView() {
             <span className="text-4xl font-light text-foreground tracking-tight">
               {metrics?.dadosColetados ?? 0}
             </span>
-            <p className="text-xs text-muted-foreground font-light mt-2">Total de {metrics?.dadosColetadosAtendimentos ?? 0} atendimentos</p>
+            <p className="text-xs text-muted-foreground font-light mt-2">Com total de {metrics?.dadosColetadosAtendimentos ?? 0} pré-atendimentos</p>
           </div>
         </div>
       </div>
