@@ -64,6 +64,7 @@ export interface DashboardMetrics {
   weeklyData: WeeklyDayData[];
   horarioPico: string | null;
   variacaoSemanal: number | null; // percentage change vs previous period
+  resumosEnviados: number;
 }
 
 export async function fetchDashboardMetrics(
@@ -278,6 +279,14 @@ export async function fetchDashboardMetrics(
     ? (totalAtendimentos > 0 ? 100 : null)
     : Math.round(((totalAtendimentos - prevTotal) / prevTotal) * 100);
 
+  // ── Resumos enviados ──
+  const { count: resumosCount, error: resumosError } = await db
+    .from('metricas')
+    .select('*', { count: 'exact', head: true })
+    .eq('tipo', 'resumo_enviado');
+
+  const resumosEnviados = resumosError ? 0 : (resumosCount ?? 0);
+
   return {
     totalAtendimentos,
     volumePorHora,
@@ -287,5 +296,6 @@ export async function fetchDashboardMetrics(
     weeklyData,
     horarioPico,
     variacaoSemanal,
+    resumosEnviados,
   };
 }
