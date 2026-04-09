@@ -65,6 +65,8 @@ export interface DashboardMetrics {
   horarioPico: string | null;
   variacaoSemanal: number | null; // percentage change vs previous period
   resumosEnviados: number;
+  dadosColetados: number;
+  dadosColetadosAtendimentos: number;
 }
 
 export async function fetchDashboardMetrics(
@@ -287,6 +289,19 @@ export async function fetchDashboardMetrics(
 
   const resumosEnviados = resumosError ? 0 : (resumosCount ?? 0);
 
+  // ── Dados coletados ──
+  const { data: dadosData, error: dadosError } = await db
+    .from('metricas')
+    .select('quantidade')
+    .eq('tipo', 'dados_coletados');
+
+  let dadosColetados = 0;
+  let dadosColetadosAtendimentos = 0;
+  if (!dadosError && dadosData) {
+    dadosColetados = dadosData.reduce((acc: number, row: any) => acc + (row.quantidade || 0), 0);
+    dadosColetadosAtendimentos = dadosData.length;
+  }
+
   return {
     totalAtendimentos,
     volumePorHora,
@@ -297,5 +312,7 @@ export async function fetchDashboardMetrics(
     horarioPico,
     variacaoSemanal,
     resumosEnviados,
+    dadosColetados,
+    dadosColetadosAtendimentos,
   };
 }
