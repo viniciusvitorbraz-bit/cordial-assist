@@ -170,11 +170,9 @@ export async function fetchDashboardMetrics(
 
       if (firstAiFinishedInRange) {
         const finishTime = new Date(firstAiFinishedInRange.created_at).getTime();
-        // Prefer ai_started as baseline; fallback to conversation_started
-        const aiStartBaseline = findLatestBefore(sorted, 'ai_started', finishTime);
-        const baseline = aiStartBaseline ?? findLatestBefore(sorted, 'conversation_started', finishTime);
-        if (baseline) {
-          const startTime = new Date(baseline.created_at).getTime();
+        const aiStartEvent = findLatestBefore(sorted, 'ai_started', finishTime);
+        if (aiStartEvent) {
+          const startTime = new Date(aiStartEvent.created_at).getTime();
           const diff = (finishTime - startTime) / 1000;
           if (diff > 0) temposIA.push(diff);
         }
