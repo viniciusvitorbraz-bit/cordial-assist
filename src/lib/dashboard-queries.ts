@@ -281,19 +281,23 @@ export async function fetchDashboardMetrics(
     ? (totalAtendimentos > 0 ? 100 : null)
     : Math.round(((totalAtendimentos - prevTotal) / prevTotal) * 100);
 
-  // ── Resumos enviados ──
+  // ── Resumos enviados (filtrado por período) ──
   const { count: resumosCount, error: resumosError } = await db
     .from('metricas')
     .select('*', { count: 'exact', head: true })
-    .eq('tipo', 'resumo_enviado');
+    .eq('tipo', 'resumo_enviado')
+    .gte('created_at', range.start)
+    .lte('created_at', range.end);
 
   const resumosEnviados = resumosError ? 0 : (resumosCount ?? 0);
 
-  // ── Dados coletados ──
+  // ── Dados coletados (filtrado por período) ──
   const { data: dadosData, error: dadosError } = await db
     .from('metricas')
     .select('quantidade')
-    .eq('tipo', 'dados_coletados');
+    .eq('tipo', 'dados_coletados')
+    .gte('created_at', range.start)
+    .lte('created_at', range.end);
 
   let dadosColetados = 0;
   let dadosColetadosAtendimentos = 0;
