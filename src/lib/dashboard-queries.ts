@@ -64,6 +64,7 @@ export interface DashboardMetrics {
   weeklyData: WeeklyDayData[];
   horarioPico: string | null;
   variacaoSemanal: number | null; // percentage change vs previous period
+  resumosEnviados: number;
 }
 
 export async function fetchDashboardMetrics(
