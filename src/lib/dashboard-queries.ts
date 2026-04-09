@@ -170,32 +170,29 @@ export async function fetchDashboardMetrics(
 
       if (firstAiFinishedInRange) {
         const finishTime = new Date(firstAiFinishedInRange.created_at).getTime();
-        // Prefer ai_started as baseline; fallback to conversation_started
-        const aiStartBaseline = findLatestBefore(sorted, 'ai_started', finishTime);
-        const baseline = aiStartBaseline ?? findLatestBefore(sorted, 'conversation_started', finishTime);
-        if (baseline) {
-          const startTime = new Date(baseline.created_at).getTime();
+        const aiStartEvent = findLatestBefore(sorted, 'ai_started', finishTime);
+        if (aiStartEvent) {
+          const startTime = new Date(aiStartEvent.created_at).getTime();
           const diff = (finishTime - startTime) / 1000;
           if (diff > 0) temposIA.push(diff);
         }
       }
 
-      // Tempo até Atendimento Humano: primeiro human_started válido (>5s) por conversa
-      const firstConversationStart = sorted.find((ev) => ev.event_type === 'conversation_started');
+      // Tempo até Atendimento Humano: do primeiro ai_finished até o primeiro human_started válido (>5s)
       const humanStartedEventsInRange = sorted.filter(
         (ev) => ev.event_type === 'human_started' && isWithinRange(ev.created_at),
       );
 
-      if (firstConversationStart && humanStartedEventsInRange.length > 0) {
-        const startTime = new Date(firstConversationStart.created_at).getTime();
+      if (firstAiFinishedInRange && humanStartedEventsInRange.length > 0) {
+        const aiFinishTime = new Date(firstAiFinishedInRange.created_at).getTime();
 
         const firstValid = humanStartedEventsInRange.find((ev) => {
-          const diff = (new Date(ev.created_at).getTime() - startTime) / 1000;
+          const diff = (new Date(ev.created_at).getTime() - aiFinishTime) / 1000;
           return diff > 5;
         });
 
         if (firstValid) {
-          const diff = (new Date(firstValid.created_at).getTime() - startTime) / 1000;
+          const diff = (new Date(firstValid.created_at).getTime() - aiFinishTime) / 1000;
           temposEspera.push(diff);
           temposTotal.push(diff);
         }
