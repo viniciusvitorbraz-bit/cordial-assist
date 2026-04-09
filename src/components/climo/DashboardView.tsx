@@ -19,7 +19,7 @@ function formatSeconds(seg: number): string {
 const DATE_OPTIONS: DateRangeKey[] = ['Hoje', 'Ontem', 'Últimos 7 dias', 'Últimos 30 dias'];
 
 export default function DashboardView() {
-  const [dateRange, setDateRange] = useState<DateRangeKey>('Últimos 7 dias');
+  const [dateRange, setDateRange] = useState<DateRangeKey>('Hoje');
   const [isDateDropdownOpen, setIsDateDropdownOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
