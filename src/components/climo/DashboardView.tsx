@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Calendar, ChevronDown, Timer, Loader2, AlertTriangle, Target, Clock, Zap, BarChart3, FileText } from 'lucide-react';
+import { Calendar, ChevronDown, Timer, Loader2, AlertTriangle, Target, Clock, Zap, BarChart3, FileText, Database } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from 'recharts';
@@ -170,7 +170,7 @@ export default function DashboardView() {
       </div>
 
       {/* Tempo Médio Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <div className="bg-card border border-border rounded-2xl p-6 flex flex-col justify-between">
           <div className="flex justify-between items-start">
             <h3 className="text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground">Tempo Médio Conversa IA</h3>
@@ -207,6 +207,19 @@ export default function DashboardView() {
               {metrics?.resumosEnviados ?? 0}
             </span>
             <p className="text-xs text-muted-foreground font-light mt-2">Total de resumos enviados pela IA</p>
+          </div>
+        </div>
+
+        <div className="bg-card border border-border rounded-2xl p-6 flex flex-col justify-between">
+          <div className="flex justify-between items-start">
+            <h3 className="text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground">Dados Coletados</h3>
+            <Database className="w-5 h-5 text-primary/60" />
+          </div>
+          <div className="my-4">
+            <span className="text-4xl font-light text-foreground tracking-tight">
+              {metrics?.dadosColetados ?? 0}
+            </span>
+            <p className="text-xs text-muted-foreground font-light mt-2">Total de {metrics?.dadosColetadosAtendimentos ?? 0} atendimentos</p>
           </div>
         </div>
       </div>
