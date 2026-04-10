@@ -167,23 +167,20 @@ export async function fetchDashboardMetrics(
     for (const [, evts] of byConversation) {
       const sorted = [...evts].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
 
-      // Coleta TODOS os pares ai_started→ai_finished da conversa e soma o tempo total de IA
-      const aiFinishedInRange = sorted.filter(
-        (ev) => ev.event_type === 'ai_finished' && isWithinRange(ev.created_at),
-      );
+      // Tempo Médio Conversa IA: conversation_started → primeiro ai_finished (primeira resposta da IA)
+      const convStarted = sorted.find((ev) => ev.event_type === 'conversation_started');
+      const firstAiFinished = sorted.find((ev) => ev.event_type === 'ai_finished');
 
-      for (const aiFinished of aiFinishedInRange) {
-        const finishTime = new Date(aiFinished.created_at).getTime();
-        const aiStartEvent = findLatestBefore(sorted, 'ai_started', finishTime);
-        if (aiStartEvent) {
-          const startTime = new Date(aiStartEvent.created_at).getTime();
-          const diff = (finishTime - startTime) / 1000;
-          if (diff > 0) temposIA.push(diff);
-        }
+      if (convStarted && firstAiFinished) {
+        const startTime = new Date(convStarted.created_at).getTime();
+        const endTime = new Date(firstAiFinished.created_at).getTime();
+        const diff = (endTime - startTime) / 1000;
+        if (diff > 0 && diff < 600) temposIA.push(diff); // ignora diffs > 10min (dados inconsistentes)
       }
 
-      // Usa o primeiro ai_finished para cálculo de tempo de espera humana
-      const firstAiFinishedInRange = aiFinishedInRange[0] ?? null;
+      const firstAiFinishedInRange = sorted.find(
+        (ev) => ev.event_type === 'ai_finished' && isWithinRange(ev.created_at),
+      ) ?? null;
 
       // Tempo até Atendimento Humano: do primeiro ai_finished até o primeiro human_started válido (>5s)
       const humanStartedEventsInRange = sorted.filter(
