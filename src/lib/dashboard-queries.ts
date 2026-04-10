@@ -182,7 +182,7 @@ export async function fetchDashboardMetrics(
       const firstAiFinishedEv = sorted.find((ev) => ev.event_type === 'ai_finished');
       const firstHumanStarted = sorted.find((ev) => ev.event_type === 'human_started');
 
-      if (firstAiFinished && firstHumanStarted) {
+      if (firstAiFinishedEv && firstHumanStarted) {
         const aiFinishTime = new Date(firstAiFinished.created_at).getTime();
         const humanTime = new Date(firstHumanStarted.created_at).getTime();
         const diff = (humanTime - aiFinishTime) / 1000;
