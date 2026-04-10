@@ -146,7 +146,7 @@ export async function fetchDashboardMetrics(
   const totalAtendimentos = startEventsInRange.length;
   const hourCounts = new Map<number, number>();
   const temposIA: number[] = [];
-  const temposEspera: number[] = [];
+  const temposEspera: { diff: number; timestamp: number }[] = [];
   const temposTotal: number[] = [];
 
   for (const ev of startEventsInRange) {
@@ -193,7 +193,7 @@ export async function fetchDashboardMetrics(
       if (lastAiFinished && firstHumanAfterAi) {
         const diff = (new Date(firstHumanAfterAi.created_at).getTime() - new Date(lastAiFinished.created_at).getTime()) / 1000;
         if (diff >= 0) {
-          temposEspera.push(diff);
+          temposEspera.push({ diff, timestamp: new Date(firstHumanAfterAi.created_at).getTime() });
           temposTotal.push(diff);
         }
       }
@@ -307,7 +307,7 @@ export async function fetchDashboardMetrics(
     totalAtendimentos,
     volumePorHora,
     tempoConversaIaSeg: avg(temposIA),
-    tempoEsperaHumanoSeg: avg(temposEspera),
+    tempoEsperaHumanoSeg: temposEspera.length === 0 ? NaN : temposEspera.sort((a, b) => b.timestamp - a.timestamp)[0].diff,
     tempoTotalSeg: avg(temposTotal),
     weeklyData,
     horarioPico,
