@@ -185,6 +185,7 @@ export async function fetchDashboardMetrics(
       if (convStart && firstHumanStarted) {
         const startTime = new Date(convStart.created_at).getTime();
         const humanTime = new Date(firstHumanStarted.created_at).getTime();
+        const diff = (humanTime - startTime) / 1000;
         if (diff >= 0) {
           temposEspera.push(diff);
           temposTotal.push(diff);
