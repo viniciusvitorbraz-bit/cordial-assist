@@ -200,7 +200,47 @@ export async function fetchDashboardMetrics(
     }
   }
 
-  // ── Processar gráfico semanal (sempre últimos 7 dias) ──
+  // ── Fallback: se não encontrou pares no período, busca o último par válido de qualquer data ──
+  if (temposEspera.length === 0) {
+    const { data: fallbackEvents } = await db
+      .from('conversation_events')
+      .select('conversation_id, event_type, created_at')
+      .in('event_type', ['ai_finished', 'human_started'])
+      .order('created_at', { ascending: false })
+      .limit(200);
+
+    if (fallbackEvents && fallbackEvents.length > 0) {
+      const fbByConv = new Map<string, typeof fallbackEvents>();
+      for (const ev of fallbackEvents) {
+        if (!fbByConv.has(ev.conversation_id)) fbByConv.set(ev.conversation_id, []);
+        fbByConv.get(ev.conversation_id)!.push(ev);
+      }
+
+      let latestPair: { diff: number; timestamp: number } | null = null;
+      for (const [, evts] of fbByConv) {
+        const sorted = [...evts].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+        const aiFinishedList = sorted.filter((ev) => ev.event_type === 'ai_finished');
+        const humanStartedList = sorted.filter((ev) => ev.event_type === 'human_started');
+        const lastAf = aiFinishedList.length > 0 ? aiFinishedList[aiFinishedList.length - 1] : null;
+        const firstHa = lastAf
+          ? humanStartedList.find((ev) => new Date(ev.created_at).getTime() > new Date(lastAf.created_at).getTime())
+          : null;
+        if (lastAf && firstHa) {
+          const diff = (new Date(firstHa.created_at).getTime() - new Date(lastAf.created_at).getTime()) / 1000;
+          const ts = new Date(firstHa.created_at).getTime();
+          if (diff >= 0 && (!latestPair || ts > latestPair.timestamp)) {
+            latestPair = { diff, timestamp: ts };
+          }
+        }
+      }
+
+      if (latestPair) {
+        temposEspera.push(latestPair);
+      }
+    }
+  }
+
+
   const weeklyByConversation = new Map<string, { started: boolean; transbordo: boolean; dateKey: string | null }>();
 
   if (weeklyEvents && weeklyEvents.length > 0) {
