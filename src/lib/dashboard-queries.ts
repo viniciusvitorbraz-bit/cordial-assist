@@ -167,18 +167,24 @@ export async function fetchDashboardMetrics(
     for (const [, evts] of byConversation) {
       const sorted = [...evts].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
 
-      // Coleta TODOS os pares ai_started→ai_finished da conversa e soma o tempo total de IA
-      const aiFinishedInRange = sorted.filter(
-        (ev) => ev.event_type === 'ai_finished' && isWithinRange(ev.created_at),
-      );
-
-      for (const aiFinished of aiFinishedInRange) {
-        const finishTime = new Date(aiFinished.created_at).getTime();
-        const aiStartEvent = findLatestBefore(sorted, 'ai_started', finishTime);
-        if (aiStartEvent) {
-          const startTime = new Date(aiStartEvent.created_at).getTime();
-          const diff = (finishTime - startTime) / 1000;
-          if (diff > 0) temposIA.push(diff);
+      // Pareia ai_started→ai_finished sequencialmente (cada ai_started só pode ser usado uma vez)
+      const aiStartedEvents = sorted.filter((ev) => ev.event_type === 'ai_started');
+      const aiFinishedEvents = sorted.filter((ev) => ev.event_type === 'ai_finished');
+      
+      let finishIdx = 0;
+      for (const aiStart of aiStartedEvents) {
+        const startTime = new Date(aiStart.created_at).getTime();
+        // Encontra o próximo ai_finished após este ai_started
+        while (finishIdx < aiFinishedEvents.length && new Date(aiFinishedEvents[finishIdx].created_at).getTime() <= startTime) {
+          finishIdx++;
+        }
+        if (finishIdx < aiFinishedEvents.length) {
+          const aiFinish = aiFinishedEvents[finishIdx];
+          if (isWithinRange(aiFinish.created_at)) {
+            const diff = (new Date(aiFinish.created_at).getTime() - startTime) / 1000;
+            if (diff > 0) temposIA.push(diff);
+          }
+          finishIdx++;
         }
       }
 
