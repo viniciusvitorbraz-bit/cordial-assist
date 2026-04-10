@@ -178,25 +178,15 @@ export async function fetchDashboardMetrics(
         if (diff > 0 && diff < 600) temposIA.push(diff); // ignora diffs > 10min (dados inconsistentes)
       }
 
-      const firstAiFinishedInRange = sorted.find(
-        (ev) => ev.event_type === 'ai_finished' && isWithinRange(ev.created_at),
-      ) ?? null;
+      // Tempo até Atendimento Humano: primeiro ai_finished → primeiro human_started (sem threshold)
+      const firstAiFinished = sorted.find((ev) => ev.event_type === 'ai_finished');
+      const firstHumanStarted = sorted.find((ev) => ev.event_type === 'human_started');
 
-      // Tempo até Atendimento Humano: do primeiro ai_finished até o primeiro human_started válido (>5s)
-      const humanStartedEventsInRange = sorted.filter(
-        (ev) => ev.event_type === 'human_started' && isWithinRange(ev.created_at),
-      );
-
-      if (firstAiFinishedInRange && humanStartedEventsInRange.length > 0) {
-        const aiFinishTime = new Date(firstAiFinishedInRange.created_at).getTime();
-
-        const firstValid = humanStartedEventsInRange.find((ev) => {
-          const diff = (new Date(ev.created_at).getTime() - aiFinishTime) / 1000;
-          return diff > 5;
-        });
-
-        if (firstValid) {
-          const diff = (new Date(firstValid.created_at).getTime() - aiFinishTime) / 1000;
+      if (firstAiFinished && firstHumanStarted) {
+        const aiFinishTime = new Date(firstAiFinished.created_at).getTime();
+        const humanTime = new Date(firstHumanStarted.created_at).getTime();
+        const diff = (humanTime - aiFinishTime) / 1000;
+        if (diff > 5) { // ignora diffs <= 5s (artefatos de webhook)
           temposEspera.push(diff);
           temposTotal.push(diff);
         }
