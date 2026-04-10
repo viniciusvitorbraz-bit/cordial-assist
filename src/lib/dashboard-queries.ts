@@ -193,7 +193,7 @@ export async function fetchDashboardMetrics(
       if (lastAiFinished && firstHumanAfterAi) {
         const diff = (new Date(firstHumanAfterAi.created_at).getTime() - new Date(lastAiFinished.created_at).getTime()) / 1000;
         if (diff >= 0) {
-          temposEspera.push(diff);
+          temposEspera.push({ diff, timestamp: new Date(firstHumanAfterAi.created_at).getTime() });
           temposTotal.push(diff);
         }
       }
