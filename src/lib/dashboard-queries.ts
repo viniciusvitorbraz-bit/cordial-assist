@@ -178,8 +178,8 @@ export async function fetchDashboardMetrics(
         if (diff > 0 && diff < 600) temposIA.push(diff); // ignora diffs > 10min (dados inconsistentes)
       }
 
-      // Tempo até Atendimento Humano: primeiro ai_finished → primeiro human_started (sem threshold)
-      const firstAiFinished = sorted.find((ev) => ev.event_type === 'ai_finished');
+      // Tempo até Atendimento Humano: primeiro ai_finished → primeiro human_started
+      const firstAiFinishedEv = sorted.find((ev) => ev.event_type === 'ai_finished');
       const firstHumanStarted = sorted.find((ev) => ev.event_type === 'human_started');
 
       if (firstAiFinished && firstHumanStarted) {
