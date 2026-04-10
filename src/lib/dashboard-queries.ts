@@ -167,18 +167,15 @@ export async function fetchDashboardMetrics(
     for (const [, evts] of byConversation) {
       const sorted = [...evts].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
 
-      // Tempo Médio Conversa IA: do conversation_started até o último ai_finished da conversa
+      // Tempo Médio Conversa IA: conversation_started → primeiro ai_finished (primeira resposta da IA)
       const convStarted = sorted.find((ev) => ev.event_type === 'conversation_started');
-      const aiFinishedInRangeAll = sorted.filter(
-        (ev) => ev.event_type === 'ai_finished' && isWithinRange(ev.created_at),
-      );
-      const lastAiFinished = aiFinishedInRangeAll.length > 0 ? aiFinishedInRangeAll[aiFinishedInRangeAll.length - 1] : null;
+      const firstAiFinished = sorted.find((ev) => ev.event_type === 'ai_finished');
 
-      if (convStarted && lastAiFinished) {
+      if (convStarted && firstAiFinished) {
         const startTime = new Date(convStarted.created_at).getTime();
-        const endTime = new Date(lastAiFinished.created_at).getTime();
+        const endTime = new Date(firstAiFinished.created_at).getTime();
         const diff = (endTime - startTime) / 1000;
-        if (diff > 0) temposIA.push(diff);
+        if (diff > 0 && diff < 600) temposIA.push(diff); // ignora diffs > 10min (dados inconsistentes)
       }
 
       const firstAiFinishedInRange = sorted.find(
