@@ -178,14 +178,20 @@ export async function fetchDashboardMetrics(
         if (diff > 0 && diff < 600) temposIA.push(diff); // ignora diffs > 10min (dados inconsistentes)
       }
 
-      // Tempo até Atendimento Humano: conversation_started → primeiro human_started
-      const convStart = sorted.find((ev) => ev.event_type === 'conversation_started');
-      const firstHumanStarted = sorted.find((ev) => ev.event_type === 'human_started');
+      // Tempo até Atendimento Humano: último ai_finished → primeiro human_started (ambos no período)
+      const aiFinishedInRange = sorted.filter(
+        (ev) => ev.event_type === 'ai_finished' && isWithinRange(ev.created_at),
+      );
+      const humanStartedInRange = sorted.filter(
+        (ev) => ev.event_type === 'human_started' && isWithinRange(ev.created_at),
+      );
+      const lastAiFinished = aiFinishedInRange.length > 0 ? aiFinishedInRange[aiFinishedInRange.length - 1] : null;
+      const firstHumanAfterAi = lastAiFinished
+        ? humanStartedInRange.find((ev) => new Date(ev.created_at).getTime() > new Date(lastAiFinished.created_at).getTime())
+        : null;
 
-      if (convStart && firstHumanStarted) {
-        const startTime = new Date(convStart.created_at).getTime();
-        const humanTime = new Date(firstHumanStarted.created_at).getTime();
-        const diff = (humanTime - startTime) / 1000;
+      if (lastAiFinished && firstHumanAfterAi) {
+        const diff = (new Date(firstHumanAfterAi.created_at).getTime() - new Date(lastAiFinished.created_at).getTime()) / 1000;
         if (diff >= 0) {
           temposEspera.push(diff);
           temposTotal.push(diff);
