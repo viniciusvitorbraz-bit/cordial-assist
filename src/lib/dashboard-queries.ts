@@ -102,7 +102,7 @@ export async function fetchDashboardMetrics(
       .from('conversation_events')
       .select('id, conversation_id, event_type, created_at')
       .in('conversation_id', conversationIds)
-      .in('event_type', ['conversation_started', 'ai_started', 'ai_finished'])
+      .in('event_type', ['conversation_started', 'ai_started', 'ai_finished', 'human_started'])
       .lt('created_at', range.start)
       .order('created_at', { ascending: true });
 
@@ -186,7 +186,7 @@ export async function fetchDashboardMetrics(
         const startTime = new Date(convStart.created_at).getTime();
         const humanTime = new Date(firstHumanStarted.created_at).getTime();
         const diff = (humanTime - startTime) / 1000;
-        if (diff > 5) {
+        if (diff >= 0) {
           temposEspera.push(diff);
           temposTotal.push(diff);
         }
