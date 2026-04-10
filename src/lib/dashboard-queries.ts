@@ -188,8 +188,9 @@ export async function fetchDashboardMetrics(
         }
       }
 
-      // Usa o primeiro ai_finished para cálculo de tempo de espera humana
-      const firstAiFinishedInRange = aiFinishedInRange[0] ?? null;
+      const firstAiFinishedInRange = sorted.find(
+        (ev) => ev.event_type === 'ai_finished' && isWithinRange(ev.created_at),
+      ) ?? null;
 
       // Tempo até Atendimento Humano: do primeiro ai_finished até o primeiro human_started válido (>5s)
       const humanStartedEventsInRange = sorted.filter(
