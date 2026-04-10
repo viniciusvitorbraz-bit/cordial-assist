@@ -178,15 +178,15 @@ export async function fetchDashboardMetrics(
         if (diff > 0 && diff < 600) temposIA.push(diff); // ignora diffs > 10min (dados inconsistentes)
       }
 
-      // Tempo até Atendimento Humano: primeiro ai_finished → primeiro human_started
-      const firstAiFinishedEv = sorted.find((ev) => ev.event_type === 'ai_finished');
+      // Tempo até Atendimento Humano: conversation_started → primeiro human_started
+      const convStart = sorted.find((ev) => ev.event_type === 'conversation_started');
       const firstHumanStarted = sorted.find((ev) => ev.event_type === 'human_started');
 
-      if (firstAiFinishedEv && firstHumanStarted) {
-        const aiFinishTime = new Date(firstAiFinishedEv.created_at).getTime();
+      if (convStart && firstHumanStarted) {
+        const startTime = new Date(convStart.created_at).getTime();
         const humanTime = new Date(firstHumanStarted.created_at).getTime();
-        const diff = (humanTime - aiFinishTime) / 1000;
-        if (diff > 5) { // ignora diffs <= 5s (artefatos de webhook)
+        const diff = (humanTime - startTime) / 1000;
+        if (diff > 5) {
           temposEspera.push(diff);
           temposTotal.push(diff);
         }
