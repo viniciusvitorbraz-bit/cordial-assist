@@ -142,13 +142,21 @@ export async function fetchDashboardMetrics(
   };
 
   // ── Processar dados do período selecionado ──
-  const startEventsInRange = selectedEvents.filter((ev) => ev.event_type === 'conversation_started');
-  const totalAtendimentos = startEventsInRange.length;
+  // Conta conversation_ids únicos no período (não depende apenas de conversation_started)
+  const uniqueConversationsInRange = new Set(selectedEvents.map((ev) => ev.conversation_id));
+  const totalAtendimentos = uniqueConversationsInRange.size;
   const hourCounts = new Map<number, number>();
   let lastTempoIA: { diff: number; timestamp: number } | null = null;
   let lastTempoEspera: { diff: number; timestamp: number } | null = null;
 
-  for (const ev of startEventsInRange) {
+  // Para volume por hora, usa o primeiro evento de cada conversa no período
+  const firstEventByConv = new Map<string, typeof selectedEvents[0]>();
+  for (const ev of selectedEvents) {
+    if (!firstEventByConv.has(ev.conversation_id)) {
+      firstEventByConv.set(ev.conversation_id, ev);
+    }
+  }
+  for (const [, ev] of firstEventByConv) {
     const ts = new Date(ev.created_at).getTime();
     const brasiliaDate = toBrasilia(ts);
     const hour = brasiliaDate.getUTCHours();
