@@ -173,14 +173,14 @@ export default function DashboardView() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <div className="bg-card border border-border rounded-2xl p-6 flex flex-col justify-between">
           <div className="flex justify-between items-start">
-            <h3 className="text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground">Tempo Médio Conversa IA</h3>
+             <h3 className="text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground">Tempo Conversa IA</h3>
             <Timer className="w-5 h-5 text-primary/60" />
           </div>
           <div className="my-4">
             <span className="text-4xl font-light text-foreground tracking-tight">
               {metrics ? formatSeconds(metrics.tempoConversaIaSeg) : '—'}
             </span>
-            <p className="text-xs text-muted-foreground font-light mt-2">Tempo médio de processamento da IA por conversa</p>
+            <p className="text-xs text-muted-foreground font-light mt-2">Último atendimento válido</p>
           </div>
         </div>
 
@@ -193,7 +193,7 @@ export default function DashboardView() {
             <span className="text-4xl font-light text-foreground tracking-tight">
               {metrics ? formatSeconds(metrics.tempoEsperaHumanoSeg) : '—'}
             </span>
-            <p className="text-xs text-muted-foreground font-light mt-2">Do fim da IA até atendimento humano</p>
+            <p className="text-xs text-muted-foreground font-light mt-2">Último atendimento válido</p>
           </div>
         </div>
 

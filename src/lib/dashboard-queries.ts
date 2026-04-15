@@ -145,9 +145,8 @@ export async function fetchDashboardMetrics(
   const startEventsInRange = selectedEvents.filter((ev) => ev.event_type === 'conversation_started');
   const totalAtendimentos = startEventsInRange.length;
   const hourCounts = new Map<number, number>();
-  const temposIA: number[] = [];
-  const temposEspera: { diff: number; timestamp: number }[] = [];
-  const temposTotal: number[] = [];
+  let lastTempoIA: { diff: number; timestamp: number } | null = null;
+  let lastTempoEspera: { diff: number; timestamp: number } | null = null;
 
   for (const ev of startEventsInRange) {
     const ts = new Date(ev.created_at).getTime();
@@ -167,18 +166,25 @@ export async function fetchDashboardMetrics(
     for (const [, evts] of byConversation) {
       const sorted = [...evts].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
 
-      // Tempo Médio Conversa IA: conversation_started → primeiro ai_finished (primeira resposta da IA)
-      const convStarted = sorted.find((ev) => ev.event_type === 'conversation_started');
+      // Tempo Conversa IA: ai_started → ai_finished (fallback: conversation_started → ai_finished)
+      const aiStarted = sorted.find((ev) => ev.event_type === 'ai_started');
       const firstAiFinished = sorted.find((ev) => ev.event_type === 'ai_finished');
+      const convStarted = sorted.find((ev) => ev.event_type === 'conversation_started');
+      const baselineEvent = aiStarted ?? convStarted;
 
-      if (convStarted && firstAiFinished) {
-        const startTime = new Date(convStarted.created_at).getTime();
+      if (baselineEvent && firstAiFinished) {
+        const startTime = new Date(baselineEvent.created_at).getTime();
         const endTime = new Date(firstAiFinished.created_at).getTime();
         const diff = (endTime - startTime) / 1000;
-        if (diff > 0 && diff < 600) temposIA.push(diff); // ignora diffs > 10min (dados inconsistentes)
+        if (diff > 0 && diff < 600) {
+          const ts = endTime;
+          if (!lastTempoIA || ts > lastTempoIA.timestamp) {
+            lastTempoIA = { diff, timestamp: ts };
+          }
+        }
       }
 
-      // Tempo até Atendimento Humano: último ai_finished → primeiro human_started (ambos no período)
+      // Tempo até Atendimento Humano: último ai_finished → primeiro human_started
       const aiFinishedInRange = sorted.filter(
         (ev) => ev.event_type === 'ai_finished' && isWithinRange(ev.created_at),
       );
@@ -193,15 +199,18 @@ export async function fetchDashboardMetrics(
       if (lastAiFinished && firstHumanAfterAi) {
         const diff = (new Date(firstHumanAfterAi.created_at).getTime() - new Date(lastAiFinished.created_at).getTime()) / 1000;
         if (diff >= 0) {
-          temposEspera.push({ diff, timestamp: new Date(firstHumanAfterAi.created_at).getTime() });
-          temposTotal.push(diff);
+          const ts = new Date(firstHumanAfterAi.created_at).getTime();
+          if (!lastTempoEspera || ts > lastTempoEspera.timestamp) {
+            lastTempoEspera = { diff, timestamp: ts };
+          }
         }
       }
     }
   }
 
   // ── Fallback: se não encontrou pares no período, busca o último par válido de qualquer data ──
-  if (temposEspera.length === 0) {
+  // ── Fallback: se não encontrou pares no período, busca o último par válido de qualquer data ──
+  if (!lastTempoEspera) {
     const { data: fallbackEvents } = await db
       .from('conversation_events')
       .select('conversation_id, event_type, created_at')
@@ -216,7 +225,6 @@ export async function fetchDashboardMetrics(
         fbByConv.get(ev.conversation_id)!.push(ev);
       }
 
-      let latestPair: { diff: number; timestamp: number } | null = null;
       for (const [, evts] of fbByConv) {
         const sorted = [...evts].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
         const aiFinishedList = sorted.filter((ev) => ev.event_type === 'ai_finished');
@@ -228,14 +236,43 @@ export async function fetchDashboardMetrics(
         if (lastAf && firstHa) {
           const diff = (new Date(firstHa.created_at).getTime() - new Date(lastAf.created_at).getTime()) / 1000;
           const ts = new Date(firstHa.created_at).getTime();
-          if (diff >= 0 && (!latestPair || ts > latestPair.timestamp)) {
-            latestPair = { diff, timestamp: ts };
+          if (diff >= 0 && (!lastTempoEspera || ts > lastTempoEspera.timestamp)) {
+            lastTempoEspera = { diff, timestamp: ts };
           }
         }
       }
+    }
+  }
 
-      if (latestPair) {
-        temposEspera.push(latestPair);
+  // ── Fallback tempo IA: busca último par válido de qualquer data ──
+  if (!lastTempoIA) {
+    const { data: fallbackIaEvents } = await db
+      .from('conversation_events')
+      .select('conversation_id, event_type, created_at')
+      .in('event_type', ['conversation_started', 'ai_started', 'ai_finished'])
+      .order('created_at', { ascending: false })
+      .limit(200);
+
+    if (fallbackIaEvents && fallbackIaEvents.length > 0) {
+      const fbByConv = new Map<string, typeof fallbackIaEvents>();
+      for (const ev of fallbackIaEvents) {
+        if (!fbByConv.has(ev.conversation_id)) fbByConv.set(ev.conversation_id, []);
+        fbByConv.get(ev.conversation_id)!.push(ev);
+      }
+
+      for (const [, evts] of fbByConv) {
+        const sorted = [...evts].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+        const aiStarted = sorted.find((ev) => ev.event_type === 'ai_started');
+        const convStarted = sorted.find((ev) => ev.event_type === 'conversation_started');
+        const aiFinished = sorted.find((ev) => ev.event_type === 'ai_finished');
+        const baseline = aiStarted ?? convStarted;
+        if (baseline && aiFinished) {
+          const diff = (new Date(aiFinished.created_at).getTime() - new Date(baseline.created_at).getTime()) / 1000;
+          const ts = new Date(aiFinished.created_at).getTime();
+          if (diff > 0 && diff < 600 && (!lastTempoIA || ts > lastTempoIA.timestamp)) {
+            lastTempoIA = { diff, timestamp: ts };
+          }
+        }
       }
     }
   }
@@ -294,7 +331,7 @@ export async function fetchDashboardMetrics(
     volumePorHora.push({ hora: `${String(h).padStart(2, '0')}h`, total: hourCounts.get(h) ?? 0 });
   }
 
-  const avg = (arr: number[]) => arr.length === 0 ? NaN : arr.reduce((a, b) => a + b, 0) / arr.length;
+  
 
   let horarioPico: string | null = null;
   if (volumePorHora.length > 0) {
@@ -346,9 +383,9 @@ export async function fetchDashboardMetrics(
   return {
     totalAtendimentos,
     volumePorHora,
-    tempoConversaIaSeg: avg(temposIA),
-    tempoEsperaHumanoSeg: temposEspera.length === 0 ? NaN : temposEspera.sort((a, b) => b.timestamp - a.timestamp)[0].diff,
-    tempoTotalSeg: avg(temposTotal),
+    tempoConversaIaSeg: lastTempoIA ? lastTempoIA.diff : NaN,
+    tempoEsperaHumanoSeg: lastTempoEspera ? lastTempoEspera.diff : NaN,
+    tempoTotalSeg: (lastTempoIA ? lastTempoIA.diff : 0) + (lastTempoEspera ? lastTempoEspera.diff : 0) || NaN,
     weeklyData,
     horarioPico,
     variacaoSemanal,
