@@ -45,7 +45,28 @@ export default function DashboardView() {
   useEffect(() => {
     fetchData();
     const interval = setInterval(fetchData, 60000);
-    return () => clearInterval(interval);
+
+    // Realtime: refetch quando novos eventos chegam
+    const db = createDynamicSupabaseClient();
+    let channel: ReturnType<typeof db.channel> | null = null;
+    if (db) {
+      channel = db
+        .channel('dashboard-realtime')
+        .on(
+          'postgres_changes',
+          { event: 'INSERT', schema: 'public', table: 'conversation_events' },
+          () => {
+            console.log('Novo evento detectado, atualizando dashboard...');
+            fetchData();
+          }
+        )
+        .subscribe();
+    }
+
+    return () => {
+      clearInterval(interval);
+      if (channel) channel.unsubscribe();
+    };
   }, [fetchData]);
 
   const hasConfig = !!createDynamicSupabaseClient();
