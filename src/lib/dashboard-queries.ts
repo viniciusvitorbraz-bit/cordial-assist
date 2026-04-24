@@ -1,6 +1,6 @@
 import { SupabaseClient } from '@supabase/supabase-js';
 
-export type DateRangeKey = 'Hoje' | 'Ontem' | 'Últimos 7 dias' | 'Últimos 30 dias' | 'custom';
+export type DateRangeKey = 'Hoje' | 'Ontem' | 'Últimos 7 dias' | 'Últimos 30 dias' | 'Últimos 2 meses' | 'custom';
 
 export interface DateRange {
   start: string; // ISO string
@@ -43,6 +43,10 @@ export function getDateRange(key: DateRangeKey, customRange?: DateRange): DateRa
     case 'Últimos 30 dias': {
       const monthStart = new Date(todayStart.getTime() - 30 * 24 * 60 * 60 * 1000);
       return { start: monthStart.toISOString(), end: todayEnd.toISOString() };
+    }
+    case 'Últimos 2 meses': {
+      const twoMonthsStart = new Date(todayStart.getTime() - 60 * 24 * 60 * 60 * 1000);
+      return { start: twoMonthsStart.toISOString(), end: todayEnd.toISOString() };
     }
     case 'custom':
       return customRange ?? { start: todayStart.toISOString(), end: todayEnd.toISOString() };

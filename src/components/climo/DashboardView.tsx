@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Calendar, ChevronDown, Timer, Loader2, AlertTriangle, Target, Clock, Zap, BarChart3, FileText, Database } from 'lucide-react';
+import { Calendar, ChevronDown, Loader2, AlertTriangle, Target, Zap, BarChart3, Database, TrendingUp, Headphones } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from 'recharts';
@@ -16,7 +16,7 @@ function formatSeconds(seg: number): string {
   return `${m}m ${String(s).padStart(2, '0')}s`;
 }
 
-const DATE_OPTIONS: DateRangeKey[] = ['Hoje', 'Ontem', 'Últimos 7 dias', 'Últimos 30 dias'];
+const DATE_OPTIONS: DateRangeKey[] = ['Hoje', 'Ontem', 'Últimos 7 dias', 'Últimos 30 dias', 'Últimos 2 meses'];
 
 export default function DashboardView() {
   const [dateRange, setDateRange] = useState<DateRangeKey>('Hoje');
