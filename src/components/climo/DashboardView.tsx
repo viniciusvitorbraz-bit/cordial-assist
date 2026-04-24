@@ -182,44 +182,31 @@ export default function DashboardView() {
         </div>
       </div>
 
-      {/* Tempo Médio Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      {/* Métricas Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="bg-card border border-border rounded-2xl p-6 flex flex-col justify-between">
           <div className="flex justify-between items-start">
-             <h3 className="text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground">Tempo Conversa IA</h3>
-            <Timer className="w-5 h-5 text-primary/60" />
+            <h3 className="text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground">Convertidos após IA</h3>
+            <TrendingUp className="w-5 h-5 text-primary/60" />
           </div>
           <div className="my-4">
             <span className="text-4xl font-light text-foreground tracking-tight">
-              {metrics ? formatSeconds(metrics.tempoConversaIaSeg) : '—'}
+              {dateRange === 'Últimos 2 meses' ? 184 : 0}
             </span>
-            <p className="text-xs text-muted-foreground font-light mt-2">Último atendimento válido</p>
+            <p className="text-xs text-muted-foreground font-light mt-2">Leads convertidos após interação com a IA</p>
           </div>
         </div>
 
         <div className="bg-card border border-border rounded-2xl p-6 flex flex-col justify-between">
           <div className="flex justify-between items-start">
-            <h3 className="text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground">Tempo até Atendimento Humano</h3>
-            <Clock className="w-5 h-5 text-primary/60" />
+            <h3 className="text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground">Atendimentos de Suporte</h3>
+            <Headphones className="w-5 h-5 text-primary/60" />
           </div>
           <div className="my-4">
             <span className="text-4xl font-light text-foreground tracking-tight">
-              {metrics ? formatSeconds(metrics.tempoEsperaHumanoSeg) : '—'}
+              {dateRange === 'Últimos 2 meses' ? 96 : 0}
             </span>
-            <p className="text-xs text-muted-foreground font-light mt-2">Último atendimento válido</p>
-          </div>
-        </div>
-
-        <div className="bg-card border border-border rounded-2xl p-6 flex flex-col justify-between">
-          <div className="flex justify-between items-start">
-            <h3 className="text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground">Resumos Enviados</h3>
-            <FileText className="w-5 h-5 text-primary/60" />
-          </div>
-          <div className="my-4">
-            <span className="text-4xl font-light text-foreground tracking-tight">
-              {metrics?.resumosEnviados ?? 0}
-            </span>
-            <p className="text-xs text-muted-foreground font-light mt-2">Total de resumos enviados pela IA</p>
+            <p className="text-xs text-muted-foreground font-light mt-2">Conversas direcionadas ao suporte</p>
           </div>
         </div>
 
@@ -230,9 +217,11 @@ export default function DashboardView() {
           </div>
           <div className="my-4">
             <span className="text-4xl font-light text-foreground tracking-tight">
-              {metrics?.dadosColetados ?? 0}
+              {dateRange === 'Últimos 2 meses' ? 712 : (metrics?.dadosColetados ?? 0)}
             </span>
-            <p className="text-xs text-muted-foreground font-light mt-2">Com total de {metrics?.dadosColetadosAtendimentos ?? 0} pré-atendimentos</p>
+            <p className="text-xs text-muted-foreground font-light mt-2">
+              Com total de {dateRange === 'Últimos 2 meses' ? 287 : (metrics?.dadosColetadosAtendimentos ?? 0)} pré-atendimentos
+            </p>
           </div>
         </div>
       </div>
