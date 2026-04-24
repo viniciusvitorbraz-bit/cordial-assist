@@ -191,7 +191,7 @@ export default function DashboardView() {
           </div>
           <div className="my-4">
             <span className="text-4xl font-light text-foreground tracking-tight">
-              {dateRange === 'Últimos 2 meses' ? 184 : 0}
+              {dateRange === 'Últimos 2 meses' ? 239 : 0}
             </span>
             <p className="text-xs text-muted-foreground font-light mt-2">Leads convertidos após interação com a IA</p>
           </div>
@@ -204,7 +204,7 @@ export default function DashboardView() {
           </div>
           <div className="my-4">
             <span className="text-4xl font-light text-foreground tracking-tight">
-              {dateRange === 'Últimos 2 meses' ? 96 : 0}
+              {dateRange === 'Últimos 2 meses' ? 199 : 0}
             </span>
             <p className="text-xs text-muted-foreground font-light mt-2">Conversas direcionadas ao suporte</p>
           </div>
