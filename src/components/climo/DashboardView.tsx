@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Calendar, ChevronDown, Loader2, AlertTriangle, Target, Zap, BarChart3, Database, TrendingUp, Headphones } from 'lucide-react';
+import { Calendar, ChevronDown, Loader2, AlertTriangle, Target, Zap, BarChart3, Database } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from 'recharts';
