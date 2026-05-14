@@ -186,32 +186,6 @@ export default function DashboardView() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="bg-card border border-border rounded-2xl p-6 flex flex-col justify-between">
           <div className="flex justify-between items-start">
-            <h3 className="text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground">Convertidos após IA</h3>
-            <TrendingUp className="w-5 h-5 text-primary/60" />
-          </div>
-          <div className="my-4">
-            <span className="text-4xl font-light text-foreground tracking-tight">
-              {dateRange === 'Últimos 2 meses' ? 239 : 0}
-            </span>
-            <p className="text-xs text-muted-foreground font-light mt-2">Leads convertidos após interação com a IA</p>
-          </div>
-        </div>
-
-        <div className="bg-card border border-border rounded-2xl p-6 flex flex-col justify-between">
-          <div className="flex justify-between items-start">
-            <h3 className="text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground">Atendimentos de Suporte</h3>
-            <Headphones className="w-5 h-5 text-primary/60" />
-          </div>
-          <div className="my-4">
-            <span className="text-4xl font-light text-foreground tracking-tight">
-              {dateRange === 'Últimos 2 meses' ? 199 : 0}
-            </span>
-            <p className="text-xs text-muted-foreground font-light mt-2">Conversas direcionadas ao suporte</p>
-          </div>
-        </div>
-
-        <div className="bg-card border border-border rounded-2xl p-6 flex flex-col justify-between">
-          <div className="flex justify-between items-start">
             <h3 className="text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground">Dados Coletados</h3>
             <Database className="w-5 h-5 text-primary/60" />
           </div>
